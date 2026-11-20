@@ -53,8 +53,8 @@ def validate_corners(corners):
     edges = np.roll(points, -1, axis=0) - points
     next_edges = np.roll(edges, -1, axis=0)
     turns = edges[:, 0] * next_edges[:, 1] - edges[:, 1] * next_edges[:, 0]
-    if (turns <= 1e-5).any() or turns.sum() < 0.004:
-        raise ValidationError("Область стены должна быть выпуклой и достаточно большой.")
+    if (turns <= 0).any():
+        raise ValidationError("Отметьте четыре разных внешних угла стены. Три угла не должны лежать на одной линии.")
     start = min(range(4), key=lambda i: (sum(points[i]), points[i, 0]))
     return np.roll(points, -start, axis=0)
 
@@ -62,13 +62,15 @@ def validate_corners(corners):
 def render_placement(facade, mural, corners):
     width, height = facade.size
     mural_width, mural_height = mural.size
-    destination = validate_corners(corners) * [width - 1, height - 1]
+    destination = (validate_corners(corners) * [width - 1, height - 1]).astype(np.float32)
+    if not cv2.isContourConvex(destination) or cv2.contourArea(destination) < 1:
+        raise ValidationError("Область слишком мала для этого фото. Раздвиньте углы стены.")
     source = [[0, 0], [mural_width - 1, 0],
               [mural_width - 1, mural_height - 1], [0, mural_height - 1]]
 
     try:
         matrix = cv2.getPerspectiveTransform(
-            np.asarray(source, dtype=np.float32), destination.astype(np.float32),
+            np.asarray(source, dtype=np.float32), destination,
         )
         # Premultiply before interpolation to avoid dark edges on transparent PNGs.
         overlay = np.asarray(mural, dtype=np.float32) / 255

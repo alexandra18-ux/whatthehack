@@ -72,6 +72,38 @@ class PlacementWorkflowTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, expected.content)
 
+    def test_preview_accepts_shallow_convex_corner(self):
+        payload = self.payload()
+        payload["corners"] = json.dumps([
+            {"x": .9, "y": .10003}, {"x": .1, "y": .1},
+            {"x": .2, "y": .9}, {"x": .5, "y": .10001},
+        ])
+        response = self.client.post(reverse("preview"), payload)
+        self.assertEqual(response.status_code, 200)
+        image = Image.open(io.BytesIO(response.content))
+        self.assertEqual(image.getpixel((30, 20)), (100, 150, 200))
+
+    def test_preview_accepts_small_fraction_of_photo_with_enough_pixels(self):
+        payload = self.payload()
+        payload["corners"] = json.dumps([
+            {"x": .48, "y": .48}, {"x": .52, "y": .48},
+            {"x": .52, "y": .52}, {"x": .48, "y": .52},
+        ])
+        response = self.client.post(reverse("preview"), payload)
+        self.assertEqual(response.status_code, 200)
+        image = Image.open(io.BytesIO(response.content))
+        self.assertEqual(image.getpixel((40, 30)), (100, 150, 200))
+
+    def test_preview_rejects_area_smaller_than_a_pixel(self):
+        payload = self.payload()
+        payload["corners"] = json.dumps([
+            {"x": .5, "y": .5}, {"x": .501, "y": .5},
+            {"x": .501, "y": .501}, {"x": .5, "y": .501},
+        ])
+        response = self.client.post(reverse("preview"), payload)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("слишком мала для этого фото", response.json()["error"])
+
     def test_moderation_controls_project_visibility_and_keeps_assets_private(self):
         response = self.client.post(reverse("create"), {**self.payload(), "status": "approved"})
         project = Placement.objects.get()
