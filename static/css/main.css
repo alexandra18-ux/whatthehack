@@ -479,6 +479,7 @@ legend { font-size: 1.1rem; padding: 0; font-weight: 730; margin-bottom: 6px; }
   .main { padding-block: 16px 42px; }
   .header-inner nav { gap: 20px; font-size: .875rem; }
   .header-inner .brand { gap: 5px; font-size: clamp(17px, 4.5vw, 24px); }
+  .header-inner .brand-mark { width: 34px; }
   .header-actions { gap: 4px; }
   .header-actions .button.compact { padding-inline: 6px; font-size: .8rem; }
   .hero { grid-template-columns: minmax(0, 1fr); min-height: auto; }
