@@ -1,4 +1,6 @@
 const form = document.querySelector("#placement-editor");
+const stage = document.querySelector("#facade-stage");
+const handles = [...stage.querySelectorAll("[data-corner]")];
 const canvas = document.querySelector("#editor-canvas");
 const ctx = canvas.getContext("2d");
 const placeholder = document.querySelector("#canvas-empty");
@@ -21,7 +23,7 @@ let designVersion = 0;
 let renderedUrl = "";
 let designUrl = "";
 let hasDesign = false;
-let activePoint = -1;
+let drag = null;
 let pending = null;
 let mode = "before";
 
@@ -36,14 +38,16 @@ function refreshControls() {
     submitButton.disabled = !canPreview || !renderedUrl;
     afterButton.disabled = !renderedUrl;
     resetButton.disabled = points.length === 0;
-    canvas.hidden = !photo || mode === "after";
+    stage.hidden = !photo || mode === "after";
     previewImage.hidden = mode !== "after";
     placeholder.hidden = Boolean(photo);
     beforeButton.setAttribute("aria-pressed", String(mode === "before"));
     afterButton.setAttribute("aria-pressed", String(mode === "after"));
 
-    if (points.length === 4) {
-        help.textContent = "Перетащите точку, чтобы изменить область.";
+    if (mode === "after") {
+        help.textContent = "Нажмите «До», чтобы скорректировать углы.";
+    } else if (points.length === 4) {
+        help.textContent = "Перетащите угол или выберите его клавишей Tab. Стрелки сдвигают точку на пиксель, Shift со стрелкой — на 10.";
     } else {
         help.textContent = photo
             ? "Следующий угол — " + cornerNames[points.length] + "."
@@ -52,16 +56,26 @@ function refreshControls() {
 }
 
 function draw() {
-    if (!photo || canvas.hidden) return;
+    if (!photo || stage.hidden) return;
     const width = canvas.clientWidth;
     if (!width) return;
     const ratio = window.devicePixelRatio || 1;
     const height = width * photo.naturalHeight / photo.naturalWidth;
-    canvas.width = Math.max(1, Math.round(width * ratio));
-    canvas.height = Math.max(1, Math.round(height * ratio));
+    const pixelWidth = Math.max(1, Math.round(width * ratio));
+    const pixelHeight = Math.max(1, Math.round(height * ratio));
+    if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
+    if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.drawImage(photo, 0, 0, width, height);
 
+    handles.forEach((handle, index) => {
+        const point = points[index];
+        handle.hidden = !point;
+        if (point) {
+            handle.style.setProperty("--corner-x", point.x * 100 + "%");
+            handle.style.setProperty("--corner-y", point.y * 100 + "%");
+        }
+    });
     if (points.length === 0) return;
     ctx.beginPath();
     points.forEach((point, index) => {
@@ -78,23 +92,6 @@ function draw() {
     ctx.lineWidth = 3;
     ctx.strokeStyle = "#ddff79";
     ctx.stroke();
-
-    points.forEach((point, index) => {
-        const x = Math.min(width - 10, Math.max(10, point.x * width));
-        const y = Math.min(height - 10, Math.max(10, point.y * height));
-        ctx.beginPath();
-        ctx.arc(x, y, 10, 0, 2 * Math.PI);
-        ctx.fillStyle = "#ddff79";
-        ctx.fill();
-        ctx.lineWidth = 1.5;
-        ctx.strokeStyle = "#181b16";
-        ctx.stroke();
-        ctx.fillStyle = "#181b16";
-        ctx.font = "bold 12px system-ui";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(String(index + 1), x, y + 0.5);
-    });
 }
 
 function show(next) {
@@ -122,36 +119,81 @@ function syncPoints() {
 
 function pointerPosition(event) {
     const bounds = canvas.getBoundingClientRect();
-    const normalized = (value, start, size) => Math.max(0, Math.min(1, (value - start) / size));
     return {
-        x: normalized(event.clientX, bounds.left, bounds.width),
-        y: normalized(event.clientY, bounds.top, bounds.height),
+        x: (event.clientX - bounds.left) / bounds.width,
+        y: (event.clientY - bounds.top) / bounds.height,
     };
 }
 
-canvas.addEventListener("pointerdown", (event) => {
-    if (!event.isPrimary || event.button !== 0) return;
-    const point = pointerPosition(event);
-    activePoint = points.findIndex((corner) => Math.hypot(
-        (corner.x - point.x) * canvas.clientWidth,
-        (corner.y - point.y) * canvas.clientHeight,
-    ) <= 18);
-    if (activePoint === -1 && points.length < 4) {
-        activePoint = points.length;
-        points.push(point);
+function clampPoint({ x, y }) {
+    return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+}
+
+function movePoint(index, position) {
+    const point = clampPoint(position);
+    if (point.x === points[index].x && point.y === points[index].y) return;
+    points[index] = point;
+    syncPoints();
+}
+
+function finishDrag() {
+    if (!drag) return;
+    handles[drag.index].classList.remove("is-dragged");
+    stage.classList.remove("is-dragging");
+    const { pointerId } = drag;
+    drag = null;
+    if (stage.hasPointerCapture(pointerId)) stage.releasePointerCapture(pointerId);
+}
+
+stage.addEventListener("pointerdown", (event) => {
+    if (!event.isPrimary || event.button !== 0 || drag) return;
+    const origin = pointerPosition(event);
+    const handle = event.target.closest("[data-corner]");
+    const index = handle ? Number(handle.dataset.corner) : points.length;
+    if (!handle) {
+        if (index === handles.length) return;
+        points.push(clampPoint(origin));
         syncPoints();
     }
-    if (activePoint !== -1) canvas.setPointerCapture(event.pointerId);
+    drag = { index, origin, start: points[index], pointerId: event.pointerId };
+    handles[index].classList.add("is-dragged");
+    stage.classList.add("is-dragging");
+    stage.setPointerCapture(event.pointerId);
 });
-canvas.addEventListener("pointermove", (event) => {
-    if (!event.isPrimary || activePoint === -1) return;
-    points[activePoint] = pointerPosition(event);
-    syncPoints();
+stage.addEventListener("pointermove", (event) => {
+    if (event.pointerId !== drag?.pointerId) return;
+    const current = pointerPosition(event);
+    movePoint(drag.index, {
+        x: drag.start.x + current.x - drag.origin.x,
+        y: drag.start.y + current.y - drag.origin.y,
+    });
 });
-canvas.addEventListener("lostpointercapture", () => { activePoint = -1; });
+for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+    stage.addEventListener(type, (event) => {
+        if (event.pointerId === drag?.pointerId) finishDrag();
+    });
+}
+
+const arrowDirections = new Map([
+    ["ArrowLeft", [-1, 0]], ["ArrowRight", [1, 0]], ["ArrowUp", [0, -1]], ["ArrowDown", [0, 1]],
+]);
+stage.addEventListener("keydown", (event) => {
+    const handle = event.target.closest("[data-corner]");
+    const direction = arrowDirections.get(event.key);
+    if (!handle || !direction || drag) return;
+    event.preventDefault();
+    const index = Number(handle.dataset.corner);
+    const [horizontal, vertical] = direction;
+    const step = event.shiftKey ? 10 : 1;
+    movePoint(index, {
+        x: points[index].x + horizontal * step / Math.max(1, photo.naturalWidth - 1),
+        y: points[index].y + vertical * step / Math.max(1, photo.naturalHeight - 1),
+    });
+});
 
 window.addEventListener("resize", draw);
 resetButton.addEventListener("click", () => {
+    finishDrag();
     points = [];
     syncPoints();
 });
@@ -168,6 +210,7 @@ const facadeCatalog = getCatalog(form.dataset.facades).catch(() => new Map());
 const designCatalog = getCatalog(form.dataset.designs).catch(() => new Map());
 
 async function choosePhoto(restorePoints = false) {
+    finishDrag();
     const version = ++photoVersion;
     const file = inputs.facade_file.files[0];
     const selection = inputs.facade.value;

@@ -130,7 +130,43 @@ h1, h2, h3 { line-height: 1.06; letter-spacing: -.04em; overflow-wrap: anywhere;
 .comparison .segmented { margin-bottom: 12px; }
 .canvas-frame { margin-top: 11px; display: grid; align-items: center; min-height: 200px; text-align: center; background: #e8ebdf; color: var(--muted); border-radius: 12px; overflow: hidden; }
 .canvas-frame canvas, .canvas-frame img { width: 100%; display: block; }
-.canvas-frame canvas { height: auto; cursor: crosshair; touch-action: none; }
+.canvas-frame canvas { height: auto; }
+.facade-stage { position: relative; cursor: crosshair; touch-action: none; user-select: none; }
+.facade-stage.is-dragging, .facade-stage.is-dragging .corner-handle { cursor: grabbing; }
+.corner-handle {
+  position: absolute;
+  top: clamp(22px, var(--corner-y), calc(100% - 22px));
+  left: clamp(22px, var(--corner-x), calc(100% - 22px));
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: .875rem;
+  font-weight: 750;
+  isolation: isolate;
+  cursor: grab;
+}
+.corner-handle::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  z-index: -1;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px white;
+}
+.corner-handle:hover, .corner-handle:focus, .corner-handle.is-dragged { z-index: 1; }
+.corner-handle:focus-visible { outline: none; }
+.corner-handle:focus-visible::before, .corner-handle.is-dragged::before {
+  background: white;
+  box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--ink);
+}
 .canvas-frame img { object-fit: contain; }
 .editor-help, .editor-message { margin-top: 9px; font-size: .9rem; }
 .editor-help { color: var(--muted); }
