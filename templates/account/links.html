@@ -1,0 +1,5 @@
+{% url 'mine' as account_link %}
+<a href="{{ account_link }}"{% if tab == "wall" %} aria-current="page"{% endif %}>Моя стена</a>
+<a href="{{ account_link }}?tab=settings"{% if tab == "settings" %} aria-current="page"{% endif %}>Настройки профиля</a>
+<a href="{{ account_link }}?tab=notifications"{% if tab == "notifications" %} aria-current="page"{% endif %}>Уведомления</a>
+<a href="{{ account_link }}?tab=comments"{% if tab == "comments" %} aria-current="page"{% endif %}>Комментарии</a>

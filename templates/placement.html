@@ -4,7 +4,12 @@
 <a class="back-link" href="{% url 'building' project.building_id %}">{{ project.building.address }}</a>
 <header class="page-heading">
   <p class="status">{{ project.get_status_display }}</p>
-  <h1>{{ project.title }}</h1>
+  <div class="publication-title-row">
+    <h1>{{ project.title }}</h1>
+    {% if user.pk == project.author_id or user.is_staff and perms.placements.moderate_placement %}
+    <a class="button outline compact publication-delete" href="{% url 'delete_placement' project.pk %}">{% include "account/trash_icon.html" %} Удалить работу</a>
+    {% endif %}
+  </div>
   {% with profile=project.author.profile %}
   {% with author_name=profile.nickname|default:project.author.username %}
   <div class="publication-byline">

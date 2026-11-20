@@ -35,6 +35,7 @@ urlpatterns = [
     path("people/<int:pk>/", users.public_profile, name="profile"),
     path("people/<int:pk>/avatar/", users.avatar, name="avatar"),
     path("placements/<int:pk>/", placements.detail, name="placement"),
+    path("placements/<int:pk>/delete/", placements.delete_placement, name="delete_placement"),
     path("placements/<int:pk>/revise/", placements.revise, name="revise"),
     path("placements/<int:revision_pk>/revise/preview/", placements.preview, name="revision_preview"),
     path("placements/<int:pk>/rating/", placements.rate, name="rate"),

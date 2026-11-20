@@ -11,6 +11,13 @@ from .services.perspective import read_image, validate_corners
 from .text_moderation import validate_public_text
 
 
+class PlacementDeletionForm(forms.Form):
+    reason = forms.CharField(
+        label="Причина удаления", max_length=1000, widget=forms.Textarea(attrs={"rows": 3}),
+        error_messages={"required": "Укажите причину удаления чужой работы."},
+    )
+
+
 class RatingForm(forms.Form):
     score = forms.IntegerField(min_value=1, max_value=5)
 

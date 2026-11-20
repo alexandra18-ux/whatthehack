@@ -22,8 +22,8 @@ from apps.buildings.models import Building, FacadePhoto
 from apps.buildings.panoramas import parse_camera
 from apps.murals.models import MuralDesign
 
-from .forms import CommentForm, PlacementForm, RatingForm
-from .models import Comment, CommentLike, Placement, Rating, can_moderate, published_placements, with_ratings
+from .forms import CommentForm, PlacementDeletionForm, PlacementForm, RatingForm
+from .models import Comment, CommentLike, ModerationDecision, Placement, Rating, can_moderate, published_placements, with_ratings
 from .services.perspective import encode_image, render_placement
 
 
@@ -138,6 +138,60 @@ def detail(request, pk):
         "comments": page.object_list if page else [], "page": page,
         "comment_draft": take_comment_draft(request, project) if published else "",
     })
+
+
+@never_cache
+@login_required
+@require_http_methods(["GET", "POST"])
+def delete_placement(request, pk):
+    projects = Placement.objects.all()
+    if not can_moderate(request.user):
+        projects = projects.filter(author=request.user)
+
+    if request.method == "POST" and request.POST.get("confirm") == "1":
+        with transaction.atomic():
+            project = get_object_or_404(projects.select_for_update(), pk=pk)
+            moderator_removal = project.author_id != request.user.pk
+            form = PlacementDeletionForm(request.POST) if moderator_removal else None
+            if form is None or form.is_valid():
+                author = project.author
+                ModerationDecision.objects.filter(placement=project).update(
+                    placement_title=project.title,
+                    placement_author_username=author.get_username(),
+                )
+                if moderator_removal:
+                    ModerationDecision.objects.create(
+                        placement_title=project.title,
+                        placement_author_username=author.get_username(),
+                        recipient=author,
+                        moderator=request.user,
+                        moderator_username=request.user.get_username(),
+                        status=ModerationDecision.DELETED,
+                        deletion_reason=form.cleaned_data["reason"],
+                    )
+                image_name = project.result_image.name
+                storage = project.result_image.storage
+                project.delete()
+                if image_name and not Placement.objects.filter(result_image=image_name).exists():
+                    transaction.on_commit(lambda: storage.delete(image_name), robust=True)
+                messages.success(request, "Работа удалена.")
+                if moderator_removal:
+                    return redirect("profile", pk=author.pk)
+                return redirect("mine")
+    else:
+        project = get_object_or_404(projects, pk=pk)
+        form = PlacementDeletionForm() if project.author_id != request.user.pk else None
+
+    source = request.GET.get("from")
+    if source == "wall" and project.author_id == request.user.pk:
+        cancel_url = reverse("mine")
+    elif source == "profile":
+        cancel_url = reverse("profile", args=[project.author_id])
+    elif source == "moderation" and can_moderate(request.user):
+        cancel_url = reverse("moderation_review", args=[pk])
+    else:
+        cancel_url = reverse("placement", args=[pk])
+    return render(request, "placement_delete.html", {"project": project, "form": form, "cancel_url": cancel_url})
 
 
 def discussion_redirect(request, project, section):

@@ -2,12 +2,14 @@
   {% for decision in decisions %}
   <li class="moderation-card">
     <div class="moderation-card-heading">
-      <h3><a href="{% url 'moderation_review' decision.placement_id %}">{{ decision.placement.title }}</a></h3>
+      <h3>{% if decision.placement_id %}<a href="{% url 'moderation_review' decision.placement_id %}">{{ decision.placement.title }}</a>{% else %}{{ decision.placement_title }}{% endif %}</h3>
       <time datetime="{{ decision.created_at|date:'c' }}">{{ decision.created_at|date:"j E Y, H:i" }}</time>
     </div>
-    {% include "moderation/person.html" with person=decision.placement.author role_label="Автор публикации" only %}
+    {% include "moderation/person.html" with person=decision.placement.author fallback=decision.placement_author_username role_label="Автор публикации" only %}
+    {% if not decision.placement_id and decision.status != "deleted" %}<p class="moderation-muted">Работа удалена</p>{% endif %}
     {% include "moderation/person.html" with person=decision.moderator fallback=decision.moderator_username role_label="Модератор" only %}
     <p class="moderation-status">Статус: <strong>{{ decision.get_status_display }}</strong></p>
+    {% if decision.deletion_reason %}<p class="moderation-note"><strong>Причина удаления</strong><br>{{ decision.deletion_reason|linebreaksbr }}</p>{% endif %}
     {% if decision.rejection_reason %}<p class="moderation-note"><strong>Причина отказа</strong><br>{{ decision.rejection_reason|linebreaksbr }}</p>{% endif %}
     {% if decision.revision_notes %}<p class="moderation-note"><strong>Что нужно доработать</strong><br>{{ decision.revision_notes|linebreaksbr }}</p>{% endif %}
   </li>

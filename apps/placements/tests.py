@@ -483,8 +483,8 @@ class PlacementWorkflowTests(TestCase):
         project.refresh_from_db()
         self.assertEqual(project.status, Placement.Status.REVISION)
         self.assertEqual(project.rejection_reason, "")
-        self.assertContains(self.client.get(reverse("mine")), notes)
-        self.assertNotContains(other.get(reverse("mine")), notes)
+        self.assertContains(self.client.get(reverse("mine"), {"tab": "notifications"}), notes)
+        self.assertNotContains(other.get(reverse("mine"), {"tab": "notifications"}), notes)
         self.assertContains(self.client.get(revise), notes)
         self.assertEqual(other.get(revise).status_code, 404)
 
@@ -509,7 +509,7 @@ class PlacementWorkflowTests(TestCase):
         self.assertContains(response, reverse("asset", args=["design", project.mural_design_id]))
         self.assertRedirects(reviewer.post(review, {"status": "approved"}), queue)
         self.assertContains(Client().get(home), project.title)
-        self.assertContains(self.client.get(reverse("mine")), "Опубликован")
+        self.assertContains(self.client.get(reverse("mine"), {"tab": "notifications"}), "Опубликован")
 
         response = reviewer.get(history, {
             "title": "Мурал", "moderator": "revision-moderator",
@@ -706,6 +706,112 @@ class PlacementWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('aria-pressed="false"', response.json()["html"])
         self.assertFalse(CommentLike.objects.filter(comment=entry).exists())
+
+    def test_placement_deletion_requires_owner_and_confirmation_and_keeps_moderation_history(self):
+        project = self.create_work("Работа для удаления", timezone.now())
+        moderator = get_user_model().objects.create_user(username="deletion-moderator", is_staff=True)
+        moderator.user_permissions.add(Permission.objects.get(codename="moderate_placement"))
+        decision = ModerationDecision.objects.create(
+            placement=project, moderator=moderator, moderator_username=moderator.username,
+            status=Placement.Status.APPROVED,
+        )
+        Comment.objects.create(placement=project, author=moderator, text="Комментарий к работе")
+        Rating.objects.create(placement=project, author=moderator, score=4)
+        account = reverse("mine")
+        detail = reverse("placement", args=[project.pk])
+        delete = reverse("delete_placement", args=[project.pk])
+        self.assertContains(self.client.get(account), f"{delete}?from=wall")
+        self.assertContains(self.client.get(detail), delete)
+        self.assertNotContains(Client().get(detail), delete)
+        self.assertEqual(Client().post(delete, {"confirm": "1"}).status_code, 302)
+
+        reviewer = Client()
+        reviewer.force_login(moderator)
+        stranger = Client()
+        stranger.force_login(get_user_model().objects.create_user(username="unrelated-reader"))
+        self.assertEqual(stranger.get(delete).status_code, 404)
+        self.assertEqual(stranger.post(delete, {"confirm": "1"}).status_code, 404)
+        self.assertContains(self.client.get(f"{delete}?from=wall"), "Да, удалить работу")
+        self.assertEqual(self.client.post(delete, {}).status_code, 200)
+        self.assertTrue(Placement.objects.filter(pk=project.pk).exists())
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.assertRedirects(self.client.post(delete, {"confirm": "1"}), account)
+        self.assertFalse(Placement.objects.filter(pk=project.pk).exists())
+        self.assertFalse(Comment.objects.filter(placement=project).exists())
+        self.assertFalse(Rating.objects.filter(placement=project).exists())
+        self.assertFalse(project.result_image.storage.exists(project.result_image.name))
+        self.assertTrue(project.facade_photo.image.storage.exists(project.facade_photo.image.name))
+        self.assertEqual(Client().get(detail).status_code, 404)
+        self.assertNotContains(Client().get(reverse("home")), project.title)
+
+        decision.refresh_from_db()
+        self.assertIsNone(decision.placement_id)
+        self.assertEqual(decision.placement_author_username, self.owner.username)
+        history = reviewer.get(reverse("moderation_history"), {"title": project.title})
+        self.assertContains(history, project.title)
+        self.assertContains(history, "Работа удалена")
+
+    def test_moderator_removes_other_work_with_reason_and_notifies_author(self):
+        project = self.create_work("Публикация модератора", timezone.now())
+        pending = self.create_work("Чужая заявка на модерации")
+        moderator = get_user_model().objects.create_user(username="work-moderator", is_staff=True)
+        moderator.user_permissions.add(Permission.objects.get(codename="moderate_placement"))
+        reviewer = Client()
+        reviewer.force_login(moderator)
+        profile = reverse("profile", args=[self.owner.pk])
+        detail = reverse("placement", args=[project.pk])
+        delete = reverse("delete_placement", args=[project.pk])
+        pending_delete = reverse("delete_placement", args=[pending.pk])
+        notifications = reverse("mine") + "?tab=notifications"
+
+        self.assertNotContains(Client().get(profile), pending.title)
+        self.assertContains(reviewer.get(profile), f"{pending_delete}?from=profile")
+        self.assertContains(reviewer.get(detail), delete)
+        self.assertContains(reviewer.get(delete), "Причина удаления")
+        response = reviewer.post(delete, {"confirm": "1", "reason": "  "})
+        self.assertContains(response, "Укажите причину удаления чужой работы.")
+        self.assertTrue(Placement.objects.filter(pk=project.pk).exists())
+        self.assertFalse(ModerationDecision.objects.filter(status=ModerationDecision.DELETED).exists())
+
+        reason = "Нужно подтвердить права на изображение"
+        self.assertRedirects(reviewer.post(delete, {"confirm": "1", "reason": reason}), profile)
+        self.assertFalse(Placement.objects.filter(pk=project.pk).exists())
+        decision = ModerationDecision.objects.get(status=ModerationDecision.DELETED)
+        self.assertEqual((decision.recipient, decision.moderator, decision.deletion_reason), (
+            self.owner, moderator, reason,
+        ))
+        response = self.client.get(notifications)
+        self.assertContains(response, project.title)
+        self.assertContains(response, "Работа удалена модератором")
+        self.assertContains(response, reason)
+        self.assertNotContains(reviewer.get(notifications), reason)
+        self.assertContains(reviewer.get(reverse("moderation_history"), {"status": "deleted"}), reason)
+
+    def test_account_tabs_show_private_activity_and_require_logout_confirmation(self):
+        account = reverse("mine")
+        project = self.create_work("Работа для личного кабинета", timezone.now())
+        commenter = get_user_model().objects.create_user(username="visitor-author")
+        Comment.objects.create(placement=project, author=commenter, text="Входящий комментарий")
+        Comment.objects.create(placement=project, author=self.owner, text="Собственный ответ")
+
+        self.assertContains(self.client.get(account), "<h1>author</h1>")
+        self.assertContains(self.client.get(account), project.title)
+        self.assertContains(self.client.get(account, {"tab": "settings"}), "Сохранить профиль")
+        self.assertNotContains(self.client.get(account, {"tab": "settings"}), "Предварительный вид")
+        self.assertContains(self.client.get(account, {"tab": "notifications"}), "Действующих ограничений нет.")
+        AccountRestriction.objects.create(user=self.owner, comments_blocked=True)
+        self.assertContains(self.client.get(account, {"tab": "notifications"}), "Запрет на комментарии · бессрочно")
+        response = self.client.get(account, {"tab": "comments"})
+        self.assertContains(response, "Входящий комментарий")
+        self.assertNotContains(response, "Собственный ответ")
+
+        self.client.force_login(commenter)
+        self.assertNotContains(self.client.get(account, {"tab": "comments"}), "Входящий комментарий")
+        self.assertContains(self.client.get(account, {"tab": "logout"}), "Да, выйти")
+        self.assertEqual(self.client.get(account).status_code, 200)
+        self.assertRedirects(self.client.post(reverse("logout")), reverse("home"))
+        self.assertEqual(self.client.get(account).status_code, 302)
 
     def test_author_rating_weights_each_rated_public_work_equally(self):
         published_at = timezone.now()

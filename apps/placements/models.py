@@ -33,10 +33,17 @@ class Placement(models.Model):
 
 
 class ModerationDecision(models.Model):
-    placement = models.ForeignKey(Placement, on_delete=models.CASCADE, related_name="moderation_decisions")
+    DELETED = "deleted"
+    STATUS_CHOICES = [*Placement.Status.choices, (DELETED, "Работа удалена модератором")]
+
+    placement = models.ForeignKey(Placement, on_delete=models.SET_NULL, null=True, related_name="moderation_decisions")
+    placement_title = models.CharField(max_length=200, blank=True)
+    placement_author_username = models.CharField(max_length=150, blank=True)
     moderator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     moderator_username = models.CharField(max_length=150)
-    status = models.CharField(max_length=10, choices=Placement.Status.choices)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+")
+    deletion_reason = models.TextField(blank=True)
     rejection_reason = models.TextField(blank=True)
     revision_notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
