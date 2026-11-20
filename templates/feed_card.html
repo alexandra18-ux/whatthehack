@@ -32,6 +32,7 @@
       <div class="feed-title-group">
         <p class="card-location">{{ project.building.address }}</p>
         <h3 id="{% if in_feed %}feed-title{% else %}result-title-{{ project.pk }}{% endif %}"{% if in_feed %} tabindex="-1"{% endif %}><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
+        {% include "panorama_credit.html" with panorama=project.facade_photo.panorama %}
       </div>
       <a class="button outline compact feed-details" href="{% url 'placement' project.pk %}">О работе</a>
     </footer>

@@ -1,11 +1,13 @@
 import math
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.files import File
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from PIL import Image, ImageDraw
 
-from apps.buildings.models import Building, FacadePhoto
+from apps.buildings.models import Building, FacadePhoto, Panorama
 from apps.murals.models import MuralDesign
 from apps.placements.models import Placement
 from apps.placements.services.perspective import encode_image, render_placement
@@ -120,4 +122,24 @@ class Command(BaseCommand):
                 result_image=encode_image(render_placement(facade_image, mural_image, CORNERS), png=True),
             )
 
-        self.stdout.write(self.style.SUCCESS("Демонстрационные проекты готовы."))
+        building, _ = Building.objects.get_or_create(
+            address="Усадьба Шмидта · улица Радищева, 14",
+            defaults={"latitude": "51.525549", "longitude": "46.033877"},
+        )
+        sample_design = MuralDesign.objects.filter(author=author, is_public=True, title=SAMPLES[0][0]).first()
+        if sample_design:
+            sample_design.buildings.add(building)
+        panorama = Panorama.objects.filter(building=building, title="Двор усадьбы Шмидта").first()
+        if panorama is None:
+            panorama = Panorama(
+                building=building, title="Двор усадьбы Шмидта", initial_heading=-65,
+                credit="FingerWiki", is_public=True,
+                source_url="https://commons.wikimedia.org/wiki/File:Courtyard_of_the_P._P._Schmidt_Estate_in_Saratov,_21_September_2020.jpg",
+                license_name="CC BY-SA 4.0", license_url="https://creativecommons.org/licenses/by-sa/4.0/",
+            )
+            source = settings.BASE_DIR / "static" / "panoramas" / "schmidt-courtyard.jpg"
+            with source.open("rb") as image:
+                panorama.image.save(source.name, File(image), save=False)
+            panorama.save()
+
+        self.stdout.write(self.style.SUCCESS("Демонстрационные проекты и панорама готовы."))

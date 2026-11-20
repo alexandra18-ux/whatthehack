@@ -104,6 +104,13 @@
     updateHint();
 
     const addressResult = document.querySelector("#map-address-result");
+    const streetWalkLink = document.querySelector("#map-street-walk-link");
+
+    function appendStreetWalk(container, url) {
+        const link = streetWalkLink.content.querySelector("a").cloneNode(true);
+        link.href = url;
+        container.append(link);
+    }
     let selection;
     let lookup;
 
@@ -176,6 +183,7 @@
                     action.href = login.href;
                 }
                 action.hidden = false;
+                appendStreetWalk(popupContent, result.street_walk_url);
             }
         } catch (error) {
             if (controller.signal.aborted) return;
@@ -212,6 +220,7 @@
             link.href = entry.url;
             link.textContent = entry[label];
             item.append(link);
+            if (entry.street_walk_url) appendStreetWalk(item, entry.street_walk_url);
             list.append(item);
         }
         popup.append(heading, list);
@@ -241,6 +250,9 @@
             const popup = document.createElement("div");
             popup.className = "map-popup";
             appendLinks(popup, "Здания", group.buildings, "address");
+            appendLinks(popup, "Панорамы 360°", group.buildings.filter((building) => building.panorama_url).map(
+                (building) => ({ title: "Открыть панораму", url: building.panorama_url }),
+            ), "title");
             appendLinks(popup, "Опубликованные проекты", group.projects, "title");
             const title = hasProjects ? group.projects[0].address : group.buildings[0].address;
             const marker = leaflet.marker(group.point, {

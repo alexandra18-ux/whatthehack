@@ -71,6 +71,12 @@ class MapPageTests(TestCase):
         response = self.client.get(url, {"lat": "51.53270", "lon": "46.03900"})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["address"], "Московская улица, 55")
+        street_walk = urlparse(response.json()["street_walk_url"])
+        self.assertEqual((street_walk.netloc, street_walk.path), ("yandex.ru", "/maps/194/saratov/"))
+        self.assertEqual(parse_qs(street_walk.query), {
+            "l": ["stv,sta"], "ll": ["46.039064,51.532716"],
+            "panorama[point]": ["46.039064,51.532716"], "panorama[full]": ["true"], "z": ["17"],
+        })
         requested = urlparse(urlopen.call_args.args[0].full_url)
         self.assertEqual(requested.path, "/photon/reverse/")
         self.assertEqual(parse_qs(requested.query)["layer"], ["house"])

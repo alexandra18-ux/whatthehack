@@ -47,10 +47,11 @@
       <a class="button outline compact" id="map-address-action" href="{% url 'login' %}?next={% url 'map' %}" hidden>Войти для создания</a>
       {% endif %}
     </template>
+    <template id="map-street-walk-link">{% include "street_walk_link.html" %}</template>
     <p class="card-meta">Адреса OpenStreetMap через <a href="https://photon.komoot.io/">Photon</a>.</p>
     <h2>Здания в каталоге</h2>
     {% for building in buildings %}
-    <a href="{% url 'building' building.pk %}" class="building-row"><span class="pin" aria-hidden="true"></span><span>{{ building.address }}</span></a>
+    <a href="{% url 'building' building.pk %}" class="building-row"><span class="pin" aria-hidden="true"></span><span>{{ building.address }}{% if building.panorama_available %}<small class="map-panorama-label">Панорама 360°</small>{% endif %}</span></a>
     {% empty %}
     <p>В каталоге пока нет зданий.</p>
     {% endfor %}

@@ -219,8 +219,46 @@ h1, h2, h3 { line-height: 1.06; letter-spacing: -.04em; overflow-wrap: anywhere;
 .address-results li { display: grid; gap: 8px; padding: 9px; border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
 .address-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .address-actions [aria-pressed="true"] { background: var(--selected); }
+.map-panorama-label { display: block; color: var(--link); }
+.panorama-open { justify-self: start; }
+.panorama-dialog {
+  width: min(940px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: clamp(12px, 2.4vw, 24px);
+}
+.panorama-dialog::backdrop { background: rgb(10 15 10 / .76); }
+.panorama-header, .panorama-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.panorama-header h2 { font-size: clamp(1.3rem, 3vw, 1.9rem); }
+.panorama-sources { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 7px 12px; align-items: center; margin-block: 12px; }
+.panorama-sources label { font-size: .9rem; font-weight: 650; }
+.panorama-sources input { min-width: 0; }
+.panorama-dialog canvas {
+  display: block;
+  width: min(100%, 72svh);
+  margin: 8px auto;
+  border-radius: 9px;
+  background: var(--canvas);
+  touch-action: none;
+  cursor: grab;
+}
+.panorama-dialog canvas:active { cursor: grabbing; }
+.panorama-dialog canvas:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.panorama-public { max-width: 1000px; }
+.panorama-frame { width: 100%; height: auto; touch-action: pan-y; user-select: none; cursor: grab; }
+.panorama-frame:active { cursor: grabbing; }
+.panorama-attribution, #panorama-credit { margin-block: 6px; color: var(--muted); font-size: .82rem; }
+.panorama-attribution a, #panorama-credit a { color: var(--link); }
+@media (max-width: 540px) {
+  .panorama-sources { grid-template-columns: minmax(0, 1fr); }
+}
 .map-address-result { min-width: 155px; font: inherit; }
 .map-address-result p { margin: 4px 0 8px; font-weight: 650; }
+.street-walk-link { margin-top: 8px; }
 
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .profile-rating strong, .profile-rating span { color: var(--link); }

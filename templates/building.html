@@ -4,7 +4,11 @@
 <a class="back-link" href="{% url 'map' %}?building={{ building.pk }}">К карте</a>
 <header class="page-heading">
   <h1>{{ building.address }}</h1>
-  <a class="button lime" href="{% url 'create' %}?building={{ building.pk }}">Примерить мурал</a>
+  <div class="address-actions">
+    <a class="button lime" href="{% url 'create' %}?building={{ building.pk }}">Примерить мурал</a>
+    {% if has_panoramas %}<a class="button outline" href="{% url 'building_panorama' building.pk %}">Открыть панораму</a>{% endif %}
+  </div>
+  {% include "street_walk_link.html" %}
 </header>
 {% with photo=facades.0 %}{% if photo %}
 <img class="building-cover" src="{% url 'asset' 'facade' photo.pk %}" alt="Изображение фасада">

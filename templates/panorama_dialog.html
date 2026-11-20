@@ -1,0 +1,35 @@
+{% load l10n %}
+<dialog class="panorama-dialog panel" id="panorama-dialog" aria-labelledby="panorama-title">
+  <header class="panorama-header">
+    <h2 id="panorama-title">Выберите вид на стену</h2>
+    <form method="dialog"><button class="button outline compact" aria-label="Закрыть панораму">Закрыть</button></form>
+  </header>
+  <div class="panorama-sources">
+    <label for="panorama-source">Панорама рядом с адресом</label>
+    <select id="panorama-source" {% if not form.panoramas %}disabled{% endif %}>
+      {% for panorama in form.panoramas %}
+      <option value="{{ panorama.pk }}" data-image="{% url 'panorama_image' panorama.pk %}"
+              data-frame="{% url 'panorama_view' panorama.pk %}"
+              data-heading="{{ panorama.initial_heading|unlocalize }}" data-credit="{{ panorama.credit }}"
+              data-source="{{ panorama.source_url }}" data-license="{{ panorama.license_name }}"
+              data-license-url="{{ panorama.license_url }}">{{ panorama.title }}</option>
+      {% empty %}
+      <option>Рядом пока нет панорам</option>
+      {% endfor %}
+    </select>
+    <label for="panorama-upload">Своя панорама 360°</label>
+    <input type="file" id="panorama-upload" accept="image/jpeg,image/png">
+  </div>
+  <p id="panorama-help" class="editor-help">Поверните вид перетаскиванием или стрелками. Колесо мыши и кнопки + и − меняют масштаб.</p>
+  <canvas id="panorama-view" width="1440" height="900" tabindex="0" aria-label="Интерактивная панорама" aria-describedby="panorama-help" hidden></canvas>
+  <div class="panorama-controls">
+    <div class="address-actions" aria-label="Управление видом">
+      <button type="button" class="button outline compact" data-panorama-zoom="-1" aria-label="Приблизить">+</button>
+      <button type="button" class="button outline compact" data-panorama-zoom="1" aria-label="Отдалить">−</button>
+      <button type="button" class="button outline compact" id="panorama-reset">Исходный вид</button>
+    </div>
+    <button type="button" class="button lime" id="panorama-use" disabled>Выделить стену</button>
+  </div>
+  <p class="card-meta" id="panorama-credit" hidden></p>
+  <p class="editor-message" id="panorama-status" role="status"></p>
+</dialog>

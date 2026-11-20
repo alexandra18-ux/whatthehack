@@ -10,6 +10,7 @@
         <p class="card-meta">{{ project.author.profile.nickname|default:project.author.username }} · {% if project.published_at %}{{ project.published_at|date:"j M Y" }}{% else %}{{ project.get_status_display }}{% endif %}</p>
       </div>
     </a>
+    {% include "panorama_credit.html" with panorama=project.facade_photo.panorama %}
   </article>
   {% empty %}
   <p class="empty">{{ empty_copy|default:"Здесь пока нет проектов." }}</p>

@@ -4,6 +4,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from apps.buildings.models import FacadePhoto
+from apps.buildings.panoramas import nearby_panoramas, panorama_frame, parse_camera
 from apps.murals.models import MuralDesign
 
 from .services.perspective import read_image, validate_corners
@@ -33,6 +34,8 @@ class PlacementForm(forms.Form):
         empty_label="Выберите эскиз",
     )
     facade_file = forms.FileField(required=False, label="Своё фото фасада")
+    panorama = forms.ModelChoiceField(queryset=None, required=False, widget=forms.HiddenInput)
+    panorama_camera = forms.CharField(required=False, max_length=100, widget=forms.HiddenInput)
     mural_file = forms.FileField(required=False, label="Свой эскиз")
     corners = forms.CharField(max_length=512, widget=forms.HiddenInput)
 
@@ -44,6 +47,8 @@ class PlacementForm(forms.Form):
             facades = facades | FacadePhoto.objects.filter(pk=revision.facade_photo_id)
             designs = designs | MuralDesign.objects.filter(pk=revision.mural_design_id)
         self.fields["facade"].queryset = facades.order_by("pk")
+        self.panoramas = nearby_panoramas(building)
+        self.fields["panorama"].queryset = self.panoramas
         self.fields["design"].queryset = designs.order_by("pk")
         for name in ("facade_file", "mural_file"):
             self.fields[name].widget.attrs["accept"] = "image/jpeg,image/png"
@@ -62,10 +67,21 @@ class PlacementForm(forms.Form):
 
     def clean(self):
         data = super().clean()
+        panorama = data.get("panorama")
+        if panorama:
+            try:
+                camera = parse_camera(data.get("panorama_camera", ""))
+                data["facade_image"] = panorama_frame(panorama, camera)
+            except ValidationError as error:
+                self.add_error("panorama_camera", error)
+            except (OSError, ValueError):
+                self.add_error("panorama_camera", "Панорама недоступна. Выберите другой ракурс или загрузите фото.")
         for choice, upload, image, transparent in (
             ("facade", "facade_file", "facade_image", False),
             ("design", "mural_file", "mural_image", True),
         ):
+            if choice == "facade" and (panorama or "panorama" in self.errors):
+                continue
             file = data.get(upload)
             asset = data.get(choice)
             if upload in self.errors or choice in self.errors:
