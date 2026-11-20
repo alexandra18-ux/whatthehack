@@ -259,6 +259,8 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .address-catalog { align-self: start; max-width: 100%; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .address-catalog summary { cursor: pointer; font-size: .875rem; color: var(--muted); }
 .address-catalog .building-row { margin-block-start: 6px; }
+.map-views { display: flex; flex-wrap: wrap; gap: 6px; }
+.map-views .button { background: var(--surface); }
 .building-row { position: relative; display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
 .building-row:hover { background: var(--row-hover); }
 .pin { flex: 0 0 13px; width: 13px; height: 13px; border: 3px solid var(--pin); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
@@ -286,10 +288,10 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .panorama-dialog::backdrop { background: rgb(10 15 10 / .76); }
 .street-walk-dialog { width: min(1200px, calc(100% - 24px)); }
 .street-walk-viewport { position: relative; margin-block: 12px; height: clamp(210px, 65dvh, 680px); overflow: hidden; border-radius: 9px; background: var(--surface-muted); }
-.street-walk-player { width: 100%; height: 100%; }
+.street-walk-player { width: 100%; height: 100%; isolation: isolate; }
 /* Yandex adds padding around the icon to fill its round button. */
 .street-walk-player [class$="-islets_round-button__icon"] { box-sizing: content-box; }
-.street-walk-status { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; background: var(--surface-muted); color: var(--muted); text-align: center; }
+.street-walk-status { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; padding: 16px; background: var(--surface-muted); color: var(--muted); text-align: center; }
 .panorama-header, .panorama-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .panorama-header h2 { font-size: clamp(1.3rem, 3vw, 1.9rem); }
 .panorama-sources { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 7px 12px; align-items: center; margin-block: 12px; }
@@ -309,6 +311,60 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .panorama-public { max-width: 1000px; }
 .panorama-frame { width: 100%; height: auto; touch-action: pan-y; user-select: none; cursor: grab; }
 .panorama-frame:active { cursor: grabbing; }
+.panorama-try-on-stage { position: relative; overflow: hidden; border-radius: 8px; }
+.panorama-try-on-layer { position: absolute; inset: 0; pointer-events: none; }
+.street-walk-viewport .panorama-try-on-layer {
+  --try-on-inset-top: 52px;
+  --try-on-inset-side: 60px;
+  --try-on-inset-bottom: 100px;
+  z-index: 1;
+  clip-path: inset(var(--try-on-inset-top) var(--try-on-inset-side) var(--try-on-inset-bottom) var(--try-on-inset-side));
+}
+@media (max-height: 650px) {
+  .street-walk-viewport .panorama-try-on-layer {
+    --try-on-inset-top: 30px;
+    --try-on-inset-bottom: 48px;
+  }
+}
+.panorama-try-on-guide, .panorama-try-on-artwork { position: absolute; pointer-events: none; }
+.panorama-try-on-guide, .panorama-try-on-guide svg { inset: 0; width: 100%; height: 100%; }
+.panorama-try-on-guide svg { display: block; }
+.panorama-try-on-guide polygon { fill: rgb(221 255 121 / .12); stroke: #ddff79; stroke-width: 2px; filter: drop-shadow(0 0 1px #151916); }
+.panorama-wall-corner {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+}
+.panorama-wall-corner::before {
+  content: "";
+  width: 17px;
+  height: 17px;
+  border: 2px solid #181c17;
+  border-radius: 50%;
+  background: #ddff79;
+}
+.panorama-wall-corner:active { cursor: grabbing; }
+.panorama-try-on-artwork {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  transform-origin: top left;
+  opacity: .94;
+}
+.panorama-try-on-tools { margin-top: 12px; }
+.panorama-try-on-tools .address-actions { margin-block: 6px; }
+.panorama-try-on-tools label { display: block; font-size: .9rem; font-weight: 650; }
 .panorama-attribution, #panorama-credit { margin-block: 6px; color: var(--muted); font-size: .82rem; }
 .panorama-attribution a, #panorama-credit a { color: var(--link); }
 @media (max-width: 540px) {

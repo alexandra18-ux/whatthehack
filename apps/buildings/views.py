@@ -1,31 +1,15 @@
-import json
 from decimal import Decimal, InvalidOperation
-from urllib.parse import urlencode
 
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.db.models import Exists, OuterRef
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
 
-from .addresses import AddressSearchUnavailable, CITY_FILTER, address_at, get_address, in_city
+from .addresses import AddressSearchUnavailable, CITY_FILTER, address_at, get_address, in_city, street_walk_url
 from .models import Building, Panorama
-from .panoramas import default_panorama_camera, nearby_panoramas, panorama_frame, parse_camera
-
-
-def street_walk_url(latitude, longitude):
-    point = f"{longitude},{latitude}"
-    yandex_query = urlencode({
-        "l": "stv,sta",
-        "ll": point,
-        "panorama[point]": point,
-        "panorama[full]": "true",
-        "z": 17,
-    })
-    return f"https://yandex.ru/maps/194/saratov/?{yandex_query}"
+from .panoramas import panorama_frame, parse_camera
 
 
 def building_data(building):
@@ -36,18 +20,12 @@ def building_data(building):
         "longitude": float(building.longitude),
         "url": reverse("building", args=[building.pk]),
         "street_walk_url": street_walk_url(building.latitude, building.longitude),
-        "panorama_url": (
-            reverse("building_panorama", args=[building.pk])
-            if building.panorama_available else ""
-        ),
     }
 
 
 def city_buildings():
     return [
-        item for item in Building.objects.filter(**CITY_FILTER).annotate(
-            panorama_available=Exists(Panorama.objects.filter(building_id=OuterRef("pk"), is_public=True)),
-        )
+        item for item in Building.objects.filter(**CITY_FILTER)
         if in_city(item.latitude, item.longitude)
     ]
 
@@ -76,7 +54,7 @@ def map_address(request):
     return JsonResponse({
         "address": address.label,
         "ticket": address.ticket,
-        "street_walk_url": street_walk_url(address.latitude, address.longitude),
+        "street_walk_url": address.street_walk_url,
     })
 
 
@@ -96,9 +74,7 @@ def detail(request, pk):
     return render(request, "building.html", {
         "building": building,
         "facades": building.facades.filter(is_public=True),
-        "has_panoramas": nearby_panoramas(building).exists(),
         "street_walk_url": street_walk_url(building.latitude, building.longitude),
-        "yandex_panorama_key": settings.YANDEX_MAPS_API_KEY,
         "projects": published_placements().filter(building=building),
     })
 
@@ -106,25 +82,7 @@ def detail(request, pk):
 @require_GET
 def building_panorama(request, pk):
     building = get_object_or_404(Building, pk=pk)
-    panoramas = nearby_panoramas(building)
-    panorama = panoramas.filter(building=building).first() or panoramas.first()
-    if panorama is None:
-        return redirect("building", pk=pk)
-    try:
-        camera, span = default_panorama_camera(panorama)
-    except (ValidationError, OSError, ValueError):
-        camera, span = None, None
-    serialized = json.dumps(camera, separators=(",", ":"))
-    return render(request, "panorama_page.html", {
-        "building": building,
-        "panorama": panorama,
-        "camera": camera,
-        "span": span,
-        "frame_url": f"{reverse('panorama_view', args=[panorama.pk])}?{urlencode({'camera': serialized, 'small': 1})}",
-        "editor_url": f"{reverse('create')}?{urlencode({'building': pk, 'panorama_source': panorama.pk, 'camera': serialized})}",
-        "street_walk_url": street_walk_url(building.latitude, building.longitude),
-        "yandex_panorama_key": settings.YANDEX_MAPS_API_KEY,
-    })
+    return redirect(street_walk_url(building.latitude, building.longitude))
 
 
 @require_GET

@@ -246,16 +246,9 @@ async function choosePhoto(restorePoints = false) {
     }
     invalidatePreview();
 
-    const panorama = inputs.panorama.value;
-    const panoramaOption = panorama && document.querySelector(`#panorama-source option[value="${CSS.escape(panorama)}"]`);
-    let panoramaUrl;
-    if (panoramaOption?.dataset.frame && inputs.panorama_camera.value) {
-        panoramaUrl = new URL(panoramaOption.dataset.frame, location.href);
-        panoramaUrl.searchParams.set("camera", inputs.panorama_camera.value);
-    }
-    const url = panoramaUrl || (file ? URL.createObjectURL(file) : (await facadeCatalog).get(selection));
+    const url = file ? URL.createObjectURL(file) : (await facadeCatalog).get(selection);
     if (!url) {
-        if (version === photoVersion && (selection || panorama)) setMessage("Не удалось открыть выбранный фасад.", true);
+        if (version === photoVersion && selection) setMessage("Не удалось открыть выбранный фасад.", true);
         return;
     }
     const image = new Image();
@@ -269,7 +262,7 @@ async function choosePhoto(restorePoints = false) {
     } catch {
         if (version === photoVersion) setMessage("Не удалось открыть фотографию.", true);
     } finally {
-        if (file && !panoramaUrl) URL.revokeObjectURL(url);
+        if (file) URL.revokeObjectURL(url);
     }
 }
 
@@ -307,47 +300,12 @@ async function chooseDesign() {
     }
 }
 
-const panoramaChosen = document.querySelector("#panorama-chosen");
-
-function clearPanorama() {
-    inputs.panorama.value = "";
-    inputs.panorama_camera.value = "";
-    panoramaChosen.hidden = true;
-}
-
-form.addEventListener("panorama:chosen", (event) => {
-    clearPanorama();
-    inputs.facade.value = "";
-    inputs.facade_file.value = "";
-    const { id, camera, file, title } = event.detail;
-    if (file) {
-        const transfer = new DataTransfer();
-        transfer.items.add(file);
-        inputs.facade_file.files = transfer.files;
-    } else {
-        inputs.panorama.value = id;
-        inputs.panorama_camera.value = JSON.stringify(camera);
-    }
-    panoramaChosen.textContent = file ? "Кадр из вашей панорамы" : title;
-    panoramaChosen.hidden = false;
-    choosePhoto().then(() => {
-        if (!stage.hidden) {
-            stage.scrollIntoView({ block: "nearest" });
-            stage.focus({ preventScroll: true });
-        }
-    });
-});
-
 inputs.facade.addEventListener("change", () => {
-    clearPanorama();
     inputs.facade_file.value = "";
     choosePhoto();
 });
 inputs.facade_file.addEventListener("change", () => {
-    if (inputs.facade_file.files.length) {
-        clearPanorama();
-        inputs.facade.value = "";
-    }
+    if (inputs.facade_file.files.length) inputs.facade.value = "";
     choosePhoto();
 });
 inputs.design.addEventListener("change", () => {
@@ -408,7 +366,7 @@ form.addEventListener("submit", (event) => {
     setMessage("Отправляем заявку…");
 });
 
-if (!inputs.facade.value && !inputs.panorama.value && !form.querySelector(".errorlist") && inputs.facade.options.length > 1) {
+if (!inputs.facade.value && !form.querySelector(".errorlist") && inputs.facade.options.length > 1) {
     inputs.facade.selectedIndex = 1;
 }
 if (!inputs.design.value && !form.querySelector(".errorlist") && inputs.design.options.length > 1) {

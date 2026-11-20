@@ -9,15 +9,15 @@
     }
 
     const coordinates = ({ latitude, longitude }) => [latitude, longitude];
-    const bounds = JSON.parse(document.querySelector("#saratov-map-bounds").textContent);
+    const bounds = leaflet.latLngBounds(JSON.parse(document.querySelector("#region-map-bounds").textContent));
     const addressPoint = (button) => [Number(button.dataset.latitude), Number(button.dataset.longitude)];
     const firstAddress = addressButtons[0];
     const map = leaflet.map(element, {
         scrollWheelZoom: true, touchZoom: true,
-        minZoom: 12, maxZoom: 19, zoomSnap: 0.25,
+        minZoom: 4, maxZoom: 19, zoomSnap: 0.25,
         maxBounds: bounds, maxBoundsViscosity: 1,
         zoomControl: false,
-    }).setView(firstAddress ? addressPoint(firstAddress) : [51.5335, 46.0343], firstAddress ? 17 : 13);
+    }).setView(firstAddress ? addressPoint(firstAddress) : [51.517, 46.08], firstAddress ? 17 : 12);
     leaflet.control.zoom({ position: "topright", zoomInTitle: "Приблизить", zoomOutTitle: "Отдалить" }).addTo(map);
     map.attributionControl.setPrefix(false);
 
@@ -92,14 +92,6 @@
         tileerror() { tileErrors = true; updateHint(); },
         load: updateHint,
     }).addTo(map);
-    const cityBoundary = JSON.parse(document.querySelector("#saratov-city-boundary").textContent);
-    const outside = [[50, 44], [50, 48], [53, 48], [53, 44]];
-    leaflet.polygon([outside, ...cityBoundary], {
-        stroke: false, fillColor: "#e6ebe0", fillOpacity: 0.88, interactive: false,
-    }).addTo(map);
-    leaflet.polyline(cityBoundary, {
-        color: "#40542b", opacity: 0.56, weight: 1.5, interactive: false,
-    }).addTo(map);
     element.classList.add("is-live");
     updateHint();
 
@@ -113,6 +105,16 @@
     }
     let selection;
     let lookup;
+    const mapViews = document.querySelector("#map-views");
+    mapViews.hidden = false;
+    mapViews.querySelector('[data-map-view="engels"]').addEventListener("click", () => {
+        map.closePopup();
+        map.setView([51.493, 46.124], 13);
+    });
+    mapViews.querySelector('[data-map-view="region"]').addEventListener("click", () => {
+        map.closePopup();
+        map.fitBounds(bounds, { padding: [16, 16] });
+    });
 
     function selectPoint(point) {
         if (selection) {
@@ -196,7 +198,7 @@
     const initialParams = new URLSearchParams(location.search);
     if (initialParams.has("lat") && initialParams.has("lon")) {
         const initialPoint = [Number(initialParams.get("lat")), Number(initialParams.get("lon"))];
-        if (leaflet.latLngBounds(bounds).contains(initialPoint)) {
+        if (bounds.contains(initialPoint)) {
             map.setView(initialPoint, 17);
             findAddress(leaflet.latLng(initialPoint));
         }
@@ -262,9 +264,6 @@
             const popup = document.createElement("div");
             popup.className = "map-popup";
             appendLinks(popup, "Здания", group.buildings, "address");
-            appendLinks(popup, "Панорамы 360°", group.buildings.filter((building) => building.panorama_url).map(
-                (building) => ({ title: "Открыть панораму", url: building.panorama_url }),
-            ), "title");
             appendLinks(popup, "Опубликованные проекты", group.projects, "title");
             const title = hasProjects ? group.projects[0].address : group.buildings[0].address;
             const marker = leaflet.marker(group.point, {

@@ -23,6 +23,7 @@
             <button class="button outline compact" type="button" data-address-point
                     data-latitude="{{ address.latitude|unlocalize }}"
                     data-longitude="{{ address.longitude|unlocalize }}" aria-pressed="false" hidden>На карте</button>
+            {% include "street_walk_link.html" with street_walk_url=address.street_walk_url %}
             {% if user.is_authenticated %}
             <form method="post" action="{% url 'building_add' %}">
               {% csrf_token %}
@@ -60,14 +61,18 @@
     <details class="address-catalog">
       <summary>Здания в каталоге</summary>
       {% for building in buildings %}
-      <a href="{% url 'building' building.pk %}" class="building-row" data-map-building="{{ building.pk }}"><span class="pin" aria-hidden="true"></span><span>{{ building.address }}{% if building.panorama_available %}<small class="map-panorama-label">Панорама 360°</small>{% endif %}</span></a>
+      <a href="{% url 'building' building.pk %}" class="building-row" data-map-building="{{ building.pk }}"><span class="pin" aria-hidden="true"></span><span>{{ building.address }}</span></a>
       {% empty %}
       <p>В каталоге пока нет зданий.</p>
       {% endfor %}
     </details>
+    <div class="map-views" id="map-views" hidden>
+      <button class="button outline compact" type="button" data-map-view="engels">Энгельс</button>
+      <button class="button outline compact" type="button" data-map-view="region">Вся область</button>
+    </div>
   </aside>
   <section class="map-panel" aria-label="Карта и метки зданий">
-    <div id="city-map" class="city-map" aria-label="Интерактивная карта Саратова"
+    <div id="city-map" class="city-map" aria-label="Интерактивная карта Саратовской области"
          data-buildings="{% url 'buildings_api' %}" data-projects="{% url 'map_api' %}"
          data-address="{% url 'map_address' %}"
          data-selected="{{ selected_building }}" data-tile-url="{{ map_tile_url }}"></div>
@@ -81,10 +86,9 @@
     </div>
   </section>
 </div>
-{{ city_bounds|json_script:"saratov-map-bounds" }}
-{{ city_boundary|json_script:"saratov-city-boundary" }}
+{{ region_map_bounds|json_script:"region-map-bounds" }}
 {% endblock %}
 {% block scripts %}
 <script defer src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
-<script defer src="{% static 'js/map.js' %}"></script>
+<script defer src="{% static 'js/map.js' %}?v=2"></script>
 {% endblock %}

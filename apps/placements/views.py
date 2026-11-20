@@ -17,9 +17,8 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 from django.views.decorators.vary import vary_on_headers
 
-from apps.buildings.addresses import CITY_FILTER, in_city
+from apps.buildings.addresses import CITY_FILTER, in_city, street_walk_url
 from apps.buildings.models import Building, FacadePhoto
-from apps.buildings.panoramas import parse_camera
 from apps.murals.models import MuralDesign
 
 from .forms import CommentForm, PlacementDeletionForm, PlacementForm, RatingForm
@@ -451,14 +450,6 @@ def create(request):
         request.FILES if submitting else None,
         building=building,
     )
-    if not submitting and request.GET.get("panorama_source"):
-        try:
-            camera = parse_camera(request.GET.get("camera", ""))
-            panorama = form.fields["panorama"].clean(request.GET["panorama_source"])
-        except (ValidationError, ValueError, OverflowError):
-            pass
-        else:
-            form.initial.update(panorama=panorama.pk, panorama_camera=json.dumps(camera))
     if form.is_valid():
         try:
             result = rendered_image(form.cleaned_data)
@@ -468,7 +459,11 @@ def create(request):
             project = save_project(building, request.user, form.cleaned_data, result)
             return redirect("placement", pk=project.pk)
 
-    return render(request, "editor.html", {"building": building, "form": form})
+    return render(request, "editor.html", {
+        "building": building,
+        "form": form,
+        "street_walk_url": street_walk_url(building.latitude, building.longitude),
+    })
 
 
 
@@ -504,4 +499,5 @@ def revise(request, pk):
     return render(request, "editor.html", {
         "building": project.building, "form": form, "revision": project,
         "preview_url": reverse("revision_preview", args=[project.pk]),
+        "street_walk_url": street_walk_url(project.building.latitude, project.building.longitude),
     })
