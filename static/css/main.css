@@ -224,7 +224,7 @@ h1, h2, h3 { line-height: 1.06; letter-spacing: -.04em; overflow-wrap: anywhere;
 .graffiti-feed { display: grid; gap: 10px; }
 .feed-instructions { color: var(--muted); font-size: .9rem; }
 .feed-viewport { position: relative; block-size: clamp(470px, calc(100svh - 140px), 840px); overflow: clip; overflow-anchor: none; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
-.feed-arrow.button { min-width: 44px; min-height: 44px; border-radius: 50%; font-size: 1.25rem; }
+.feed-arrow.button { width: 100%; padding: 4px 12px; border-radius: 8px; font-size: 1.25rem; }
 .feed-post {
   display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(250px, 1fr); grid-template-rows: minmax(0, 1fr);
   block-size: 100%;
@@ -232,14 +232,14 @@ h1, h2, h3 { line-height: 1.06; letter-spacing: -.04em; overflow-wrap: anywhere;
   overflow: clip;
 }
 .feed-post.feed-preview { position: absolute; inset: 0 0 auto; pointer-events: none; }
-.feed-main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
-.feed-byline, .feed-caption { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; padding: 10px 16px; }
+.feed-main { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto; min-width: 0; min-height: 0; }
+.feed-byline, .feed-caption { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 16px; }
 .feed-byline time { color: var(--muted); font-size: .875rem; text-align: right; }
 .feed-author { display: inline-flex; align-items: center; justify-self: start; gap: 9px; font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
 .feed-author img, .feed-author .avatar-placeholder { width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; object-fit: cover; font-size: .95rem; }
-.feed-cover { position: relative; touch-action: pan-x pinch-zoom; user-select: none; }
+.feed-cover { position: relative; min-height: 0; overflow: clip; touch-action: pan-x pinch-zoom; user-select: none; }
 .feed-cover a { display: block; height: 100%; }
-.feed-cover a:focus-visible { outline-offset: -5px; }
+.feed-arrow:focus-visible, .feed-cover a:focus-visible { outline-offset: -5px; }
 .feed-cover img { width: 100%; height: 100%; object-fit: cover; }
 .feed-sidebar { min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; background: var(--feed-sidebar); border-left: 1px solid var(--line); }
 .feed-rating { grid-column: 1 / -1; justify-self: start; }
