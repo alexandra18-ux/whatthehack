@@ -23,7 +23,6 @@
             <button class="button outline compact" type="button" data-address-point
                     data-latitude="{{ address.latitude|unlocalize }}"
                     data-longitude="{{ address.longitude|unlocalize }}" aria-pressed="false" hidden>На карте</button>
-            {% include "street_walk_link.html" with street_walk_url=address.street_walk_url %}
             {% if user.is_authenticated %}
             <form method="post" action="{% url 'building_add' %}">
               {% csrf_token %}
@@ -53,23 +52,17 @@
         <input type="hidden" name="address_ticket">
         <button class="button lime compact">Создать проект</button>
       </form>
-      {% else %}
-      <a class="button outline compact" id="map-address-action" href="{% url 'login' %}?next={% url 'map' %}" hidden>Войти для создания</a>
       {% endif %}
+      <a class="button outline compact" id="map-address-login" href="{% url 'login' %}" hidden>Войти для создания</a>
     </template>
-    <template id="map-street-walk-link">{% include "street_walk_link.html" %}</template>
     <details class="address-catalog">
       <summary>Здания в каталоге</summary>
       {% for building in buildings %}
-      <a href="{% url 'building' building.pk %}" class="building-row" data-map-building="{{ building.pk }}"><span class="pin" aria-hidden="true"></span><span>{{ building.address }}{% if building.panorama_available %}<small class="map-panorama-label">Панорама 360°</small>{% endif %}</span></a>
+      <a href="{% url 'building' building.pk %}" class="building-row" data-map-building="{{ building.pk }}"><span class="pin" aria-hidden="true"></span><span>{{ building.address }}</span></a>
       {% empty %}
       <p>В каталоге пока нет зданий.</p>
       {% endfor %}
     </details>
-    <div class="map-views" id="map-views" hidden>
-      <button class="button outline compact" type="button" data-map-view="engels">Энгельс</button>
-      <button class="button outline compact" type="button" data-map-view="region">Вся область</button>
-    </div>
   </aside>
   <section class="map-panel" aria-label="Карта и метки зданий">
     <div id="city-map" class="city-map" aria-label="Интерактивная карта Саратовской области"

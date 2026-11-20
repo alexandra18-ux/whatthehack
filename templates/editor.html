@@ -7,7 +7,6 @@
 {% url 'preview' as default_preview %}
 <form class="editor-layout" id="placement-editor" method="post" enctype="multipart/form-data"
       data-preview="{{ preview_url|default:default_preview }}" data-facades="{% url 'facades_api' building.pk %}" data-designs="{% url 'designs_api' building.pk %}"
-      {% if request.GET.panorama == "1" %}data-open-panorama{% endif %}
       {% if revision %}
       data-current-facade="{{ revision.facade_photo_id }}" data-current-facade-url="{% url 'asset' 'facade' revision.facade_photo_id %}"
       data-current-design="{{ revision.mural_design_id }}" data-current-design-url="{% url 'asset' 'design' revision.mural_design_id %}"
@@ -15,7 +14,6 @@
   {% csrf_token %}
   <input type="hidden" name="building" value="{{ building.pk }}">
   {{ form.corners }}
-  {{ form.panorama }}{{ form.panorama_camera }}
   <div class="editor-main">
     <div class="editor-toolbar">
       <div class="segmented" aria-label="Предпросмотр">
@@ -25,7 +23,7 @@
       <button class="button outline compact" type="button" id="reset-corners" disabled>Сбросить точки</button>
     </div>
     <div class="canvas-frame">
-      <p id="canvas-empty">Выберите фотографию фасада или откройте панораму</p>
+      <p id="canvas-empty">Выберите фотографию фасада</p>
       <div id="facade-stage" class="facade-stage" tabindex="-1" aria-label="Фасад" hidden>
         <canvas id="editor-canvas" aria-hidden="true"></canvas>
         <button class="corner-handle" type="button" data-corner="0" aria-label="Угол 1" aria-describedby="editor-help" hidden>1</button>
@@ -37,14 +35,12 @@
     </div>
     <p class="editor-help" id="editor-help">Укажите четыре угла стены в любом порядке.</p>
     <p id="editor-message" class="editor-message" role="status"></p>
-    {{ form.non_field_errors }}{{ form.corners.errors }}{{ form.panorama.errors }}{{ form.panorama_camera.errors }}
+    {{ form.non_field_errors }}{{ form.corners.errors }}
     <noscript><p class="notice">Для редактора нужен JavaScript.</p></noscript>
   </div>
   <aside class="panel editor-panel">
     <fieldset>
       <legend>Фасад</legend>
-      <button type="button" class="button outline panorama-open" id="open-panorama" hidden>Выбрать из панорамы</button>
-      <p class="card-meta" id="panorama-chosen" role="status" hidden></p>
       {{ form.facade.as_field_group }}
       {{ form.facade_file.as_field_group }}
     </fieldset>
@@ -63,9 +59,7 @@
     <button class="button lime" id="submit-placement" disabled>{% if revision %}Отправить повторно{% else %}Отправить на модерацию{% endif %}</button>
   </aside>
 </form>
-{% include "panorama_dialog.html" %}
 {% endblock %}
 {% block scripts %}
 <script defer src="{% static 'js/placement_editor.js' %}"></script>
-<script defer src="{% static 'js/panorama.js' %}"></script>
 {% endblock %}

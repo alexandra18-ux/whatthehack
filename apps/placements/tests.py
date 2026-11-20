@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.utils.html import escape
 from PIL import Image
 
-from apps.buildings.models import Building, Panorama
+from apps.buildings.models import Building
 from apps.users.models import AccountRestriction
 
 from .models import Comment, CommentDeletion, CommentLike, ModerationDecision, Placement, Rating
@@ -56,56 +56,6 @@ class PlacementWorkflowTests(TestCase):
         self.assertEqual(image.getpixel((0, 0)), (200, 200, 200))
         self.assertEqual(image.getpixel((40, 30)), (100, 150, 200))
         self.assertFalse(Placement.objects.exists())
-
-    def test_panorama_view_can_be_used_as_the_facade_through_publication(self):
-        image = Image.new("RGB", (800, 400), (200, 200, 200))
-        image.paste((30, 100, 40), (400, 0, 800, 400))
-        buffer = io.BytesIO()
-        image.save(buffer, format="JPEG")
-        panorama = Panorama.objects.create(
-            building=self.building, title="Съёмка фасада", credit="Автор панорамы",
-            is_public=True, image=SimpleUploadedFile("panorama.jpg", buffer.getvalue(), "image/jpeg"),
-        )
-        visitor = Client()
-        public = visitor.get(reverse("building_panorama", args=[self.building.pk]))
-        self.assertContains(public, panorama.title)
-        self.assertContains(public, "public-panorama-image")
-        self.assertEqual(visitor.get(public.context["frame_url"]).status_code, 200)
-        self.assertEqual(visitor.get(public.context["editor_url"]).status_code, 302)
-        from_viewer = self.client.get(public.context["editor_url"])
-        self.assertEqual(from_viewer.context["form"].initial["panorama"], panorama.pk)
-        editor = self.client.get(reverse("create"), {"building": self.building.pk, "panorama": 1})
-        self.assertContains(editor, panorama.title)
-        self.assertContains(editor, "data-open-panorama")
-        url = reverse("panorama_view", args=[panorama.pk])
-        camera = json.dumps([-90, 0, 40])
-        frame = self.client.get(url, {"camera": camera})
-        self.assertEqual(frame.status_code, 200)
-        facade = Image.open(io.BytesIO(frame.content))
-        self.assertEqual(facade.size, (1440, 900))
-        self.assertEqual(facade.getpixel((720, 450)), (200, 200, 200))
-        self.assertEqual(self.client.get(url, {"camera": "[0, 0, 180]"}).status_code, 400)
-
-        def from_panorama():
-            data = self.payload()
-            del data["facade_file"]
-            return {**data, "panorama": panorama.pk, "panorama_camera": camera}
-
-        self.assertEqual(self.client.post(reverse("preview"), from_panorama()).status_code, 200)
-        elsewhere = Building.objects.create(address="Другой адрес", latitude=51.6, longitude=46.1)
-        rejected = self.client.post(reverse("preview"), {**from_panorama(), "building": elsewhere.pk})
-        self.assertEqual(rejected.status_code, 400)
-        self.assertIn("panorama", rejected.json()["errors"])
-
-        created = self.client.post(reverse("create"), from_panorama())
-        project = Placement.objects.get()
-        self.assertEqual(project.facade_photo.panorama_id, panorama.pk)
-        self.assertRedirects(created, reverse("placement", args=[project.pk]))
-        self.assertContains(self.client.get(created.url), panorama.credit)
-
-        panorama.is_public = False
-        panorama.save(update_fields=["is_public"])
-        self.assertEqual(self.client.get(reverse("panorama_image", args=[panorama.pk])).status_code, 404)
 
     def test_invalid_corners_and_image_produce_field_errors(self):
         payload = self.payload()

@@ -1,26 +1,14 @@
-import json
 from decimal import Decimal, InvalidOperation
-from urllib.parse import urlencode
 
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
-from django.db.models import Exists, OuterRef
-from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.views.decorators.cache import never_cache
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
 
-from .addresses import AddressSearchUnavailable, CITY_FILTER, address_at, get_address, in_city, street_walk_url
-from .models import Building, Panorama
-from .panoramas import default_panorama_camera, nearby_panoramas, panorama_frame, parse_camera
-
-
-def render_with_panorama(request, template, context):
-    response = render(request, template, {**context, "yandex_panorama_key": settings.YANDEX_MAPS_API_KEY})
-    if settings.YANDEX_MAPS_API_KEY:
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    return response
+from .addresses import AddressSearchUnavailable, CITY_FILTER, address_at, get_address, in_city
+from .models import Building
 
 
 def building_data(building):
@@ -30,19 +18,12 @@ def building_data(building):
         "latitude": float(building.latitude),
         "longitude": float(building.longitude),
         "url": reverse("building", args=[building.pk]),
-        "street_walk_url": street_walk_url(building.latitude, building.longitude),
-        "panorama_url": (
-            reverse("building_panorama", args=[building.pk])
-            if building.panorama_available else ""
-        ),
     }
 
 
 def city_buildings():
     return [
-        item for item in Building.objects.filter(**CITY_FILTER).annotate(
-            panorama_available=Exists(Panorama.objects.filter(building_id=OuterRef("pk"), is_public=True)),
-        )
+        item for item in Building.objects.filter(**CITY_FILTER)
         if in_city(item.latitude, item.longitude)
     ]
 
@@ -54,6 +35,7 @@ def buildings_api(request):
 
 
 @require_GET
+@never_cache
 def map_address(request):
     try:
         latitude = Decimal(request.GET.get("lat", ""))
@@ -71,7 +53,7 @@ def map_address(request):
     return JsonResponse({
         "address": address.label,
         "ticket": address.ticket,
-        "street_walk_url": address.street_walk_url,
+        "is_authenticated": request.user.is_authenticated,
     })
 
 
@@ -88,61 +70,11 @@ def detail(request, pk):
     from apps.placements.models import published_placements
 
     building = get_object_or_404(Building, pk=pk)
-    return render_with_panorama(request, "building.html", {
+    return render(request, "building.html", {
         "building": building,
         "facades": building.facades.filter(is_public=True),
-        "has_panoramas": nearby_panoramas(building).exists(),
-        "street_walk_url": street_walk_url(building.latitude, building.longitude),
-        "street_walk_designs": building.designs.filter(is_public=True).order_by("title", "pk"),
         "projects": published_placements().filter(building=building),
     })
-
-
-@require_GET
-def building_panorama(request, pk):
-    building = get_object_or_404(Building, pk=pk)
-    panoramas = nearby_panoramas(building)
-    panorama = panoramas.filter(building=building).first() or panoramas.first()
-    if panorama is None:
-        return redirect("building", pk=pk)
-    try:
-        camera, span = default_panorama_camera(panorama)
-    except (ValidationError, OSError, ValueError):
-        camera, span = None, None
-    serialized = json.dumps(camera, separators=(",", ":"))
-    return render_with_panorama(request, "panorama_page.html", {
-        "building": building,
-        "panorama": panorama,
-        "camera": camera,
-        "span": span,
-        "frame_url": f"{reverse('panorama_view', args=[panorama.pk])}?{urlencode({'camera': serialized, 'small': 1})}",
-        "editor_url": f"{reverse('create')}?{urlencode({'building': pk, 'panorama_source': panorama.pk, 'camera': serialized})}",
-        "street_walk_designs": building.designs.filter(is_public=True).order_by("title", "pk"),
-        "street_walk_url": street_walk_url(building.latitude, building.longitude),
-    })
-
-
-@require_GET
-def panorama_image(request, pk):
-    panorama = get_object_or_404(Panorama, pk=pk, is_public=True)
-    try:
-        return FileResponse(panorama.image.open("rb"))
-    except OSError as error:
-        raise Http404 from error
-
-
-@require_GET
-def panorama_view(request, pk):
-    from apps.placements.services.perspective import encode_image
-
-    panorama = get_object_or_404(Panorama, pk=pk, is_public=True)
-    try:
-        camera = parse_camera(request.GET.get("camera", ""))
-        size = (960, 600) if request.GET.get("small") == "1" else (1440, 900)
-        frame = panorama_frame(panorama, camera, size=size)
-    except (ValidationError, OSError, ValueError):
-        return JsonResponse({"error": "Не удалось подготовить вид на стену."}, status=400)
-    return HttpResponse(encode_image(frame).read(), content_type="image/jpeg")
 
 
 @login_required

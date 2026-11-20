@@ -15,11 +15,10 @@ from django.urls import reverse
 from django.utils.cache import add_never_cache_headers
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
-from django.views.decorators.vary import vary_on_headers
+from django.views.decorators.vary import vary_on_cookie, vary_on_headers
 
 from apps.buildings.addresses import CITY_FILTER, in_city
 from apps.buildings.models import Building, FacadePhoto
-from apps.buildings.panoramas import parse_camera
 from apps.murals.models import MuralDesign
 
 from .forms import CommentForm, PlacementDeletionForm, PlacementForm, RatingForm
@@ -94,6 +93,7 @@ def search(request):
     return render(request, "search.html", {"search_query": query, "page": page})
 
 
+@vary_on_cookie
 def map_api(request):
     return JsonResponse({"projects": [
         {
@@ -103,6 +103,7 @@ def map_api(request):
             "latitude": float(project.building.latitude),
             "longitude": float(project.building.longitude),
             "image": reverse("project_image", args=[project.pk, "result"]),
+            "is_own": project.author_id == request.user.pk,
             "url": reverse("placement", args=[project.pk]),
         }
         for project in published_placements().filter(**{
@@ -402,8 +403,8 @@ def save_project(building, author, data, result, *, revision=None):
                 if current != original:
                     raise ValidationError("Заявка изменилась. Откройте редактор заново.")
             facade = data["facade"]
-            if data["facade_file"] or data["panorama"]:
-                facade = FacadePhoto(building=building, uploaded_by=author, panorama=data["panorama"])
+            if data["facade_file"]:
+                facade = FacadePhoto(building=building, uploaded_by=author)
                 store(facade.image, encode_image(data["facade_image"], png=True))
                 facade.save()
             design = data["design"]
@@ -451,14 +452,6 @@ def create(request):
         request.FILES if submitting else None,
         building=building,
     )
-    if not submitting and request.GET.get("panorama_source"):
-        try:
-            camera = parse_camera(request.GET.get("camera", ""))
-            panorama = form.fields["panorama"].clean(request.GET["panorama_source"])
-        except (ValidationError, ValueError, OverflowError):
-            pass
-        else:
-            form.initial.update(panorama=panorama.pk, panorama_camera=json.dumps(camera))
     if form.is_valid():
         try:
             result = rendered_image(form.cleaned_data)
