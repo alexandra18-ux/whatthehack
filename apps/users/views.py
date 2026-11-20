@@ -3,11 +3,12 @@ from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
-from apps.placements.models import ModerationDecision, Placement, author_rating, published_placements
+from apps.placements.models import Comment, ModerationDecision, Placement, author_rating, can_moderate, published_placements
 from apps.placements.views import image_response
 
 from .auth import can_manage_restrictions
@@ -33,28 +34,44 @@ def register(request):
 @require_http_methods(["GET", "POST"])
 def account(request):
     profile = Profile.objects.filter(user=request.user).first()
+    tab = request.GET.get("tab", "wall")
+    if tab not in {"wall", "settings", "notifications", "comments", "logout"}:
+        tab = "wall"
     submitted = request.method == "POST"
-    form = ProfileForm(
-        request.POST if submitted else None,
-        request.FILES if submitted else None,
-        initial={"nickname": profile.nickname if profile else ""},
-    )
-    if form.is_valid():
-        save_profile(request.user, form.cleaned_data)
-        messages.success(request, "Профиль обновлён.")
-        return redirect("mine")
+    if submitted:
+        tab = "settings"
 
-    projects = Placement.objects.filter(author=request.user).select_related("building", "author__profile")
-    page = Paginator(projects, 12).get_page(request.GET.get("page"))
-    notifications = ModerationDecision.objects.filter(
-        placement__author=request.user,
-        status__in=[Placement.Status.APPROVED, Placement.Status.REJECTED, Placement.Status.REVISION],
-    ).select_related("placement")[:12]
-    return render(request, "mine.html", {
-        "profile_user": request.user, "profile": profile, "form": form,
-        "profile_rating": author_rating(request.user), "notifications": notifications,
-        "projects": page.object_list, "page": page,
-    })
+    context = {
+        "profile_user": request.user, "profile": profile, "profile_rating": author_rating(request.user),
+        "tab": tab,
+    }
+    if tab == "settings":
+        form = ProfileForm(
+            request.POST if submitted else None,
+            request.FILES if submitted else None,
+            initial={"nickname": profile.nickname if profile else ""},
+        )
+        if form.is_valid():
+            save_profile(request.user, form.cleaned_data)
+            messages.success(request, "Профиль обновлён.")
+            return redirect("mine")
+        context["form"] = form
+    elif tab == "notifications":
+        context["notifications"] = ModerationDecision.objects.filter(
+            Q(placement__author=request.user, status__in=[
+                Placement.Status.APPROVED, Placement.Status.REJECTED, Placement.Status.REVISION,
+            ]) | Q(recipient=request.user, status=ModerationDecision.DELETED)
+        ).select_related("placement")[:12]
+    elif tab == "comments":
+        comments = Comment.objects.filter(
+            placement__in=published_placements().filter(author=request.user),
+        ).exclude(author=request.user).select_related("placement", "author__profile")
+        context["page"] = Paginator(comments, 12).get_page(request.GET.get("page"))
+    elif tab == "wall":
+        projects = Placement.objects.filter(author=request.user).select_related("building", "author__profile", "facade_photo__panorama")
+        page = Paginator(projects, 12).get_page(request.GET.get("page"))
+        context.update(projects=page.object_list, page=page)
+    return render(request, "mine.html", context)
 
 
 def save_profile(user, data):
@@ -68,8 +85,6 @@ def save_profile(user, data):
             if upload := data["avatar"]:
                 profile.avatar.save(upload.name, upload, save=False)
                 replacement = profile.avatar
-            elif data["remove_avatar"]:
-                profile.avatar = ""
             profile.save()
             if old_name and old_name != profile.avatar.name:
                 transaction.on_commit(lambda: storage.delete(old_name), robust=True)
@@ -80,12 +95,21 @@ def save_profile(user, data):
 
 
 def public_profile(request, pk):
-    author = get_object_or_404(get_user_model().objects.select_related("profile"), pk=pk, is_active=True)
-    page = Paginator(published_placements().filter(author=author), 12).get_page(request.GET.get("page"))
+    may_delete_other_works = can_moderate(request.user)
+    authors = get_user_model().objects.select_related("profile")
+    if not may_delete_other_works:
+        authors = authors.filter(is_active=True)
+    author = get_object_or_404(authors, pk=pk)
+    projects = (
+        Placement.objects.select_related("building", "author__profile", "facade_photo__panorama")
+        if may_delete_other_works else published_placements()
+    )
+    page = Paginator(projects.filter(author=author), 12).get_page(request.GET.get("page"))
     return render(request, "profile.html", {
         "profile_user": author, "profile": getattr(author, "profile", None),
         "profile_rating": author_rating(author),
         "may_manage_restrictions": can_manage_restrictions(request.user, author),
+        "may_delete_other_works": may_delete_other_works,
         "projects": page.object_list, "page": page,
     })
 

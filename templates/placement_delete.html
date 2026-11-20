@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Удалить работу · Murrralium{% endblock %}
+{% block content %}
+<section class="panel account-logout-confirmation" aria-labelledby="delete-work-title">
+  <h1 id="delete-work-title">Удалить «{{ project.title }}»?</h1>
+  <p>Работа исчезнет со стены, из ленты и с карты. Комментарии и оценки к ней тоже будут удалены.</p>
+  <form class="editor-panel" method="post">
+    {% csrf_token %}
+    {% if form %}
+    <div>{{ form.reason.as_field_group }}<p>Автор увидит эту причину в уведомлениях.</p></div>
+    {% endif %}
+    <div class="address-actions">
+      <button class="button outline publication-delete" type="submit" name="confirm" value="1">Да, удалить работу</button>
+      <a class="button outline" href="{{ cancel_url }}">Отмена</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -8,6 +8,7 @@
   {% url 'profile' project.author_id as author_url %}
   {% include "moderation/person.html" with person=project.author profile_url=author_url role_label="Автор публикации" only %}
   <p class="moderation-status">Статус: <strong>{{ project.get_status_display }}</strong></p>
+  <a class="button outline compact publication-delete" href="{% url 'delete_placement' project.pk %}?from=moderation">{% include "account/trash_icon.html" %} Удалить работу</a>
 </header>
 <div class="project-detail-layout">
   <div>

@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% block title %}{{ profile.nickname|default:profile_user.username }} · Murrralium{% endblock %}
 {% block content %}
-{% include "profile_header.html" %}
+{% include "account/identity.html" %}
 {% if may_manage_restrictions %}
 <p class="project-feed-return"><a class="button outline" href="{% url 'moderation_restrict_account' profile_user.pk %}">Управлять ограничениями</a></p>
 {% endif %}
-<section class="section">
-  <header class="section-heading"><h2>Опубликованные работы</h2></header>
-  {% include "project_grid.html" with empty_copy="У автора пока нет опубликованных работ." %}
+<section class="account-public-wall">
+  <header class="account-section-heading"><h2>{% if may_delete_other_works %}Все работы автора{% else %}Опубликованные работы{% endif %}</h2></header>
+  {% include "project_grid.html" with empty_copy="Работ пока нет." account_cards=True %}
   {% include "pagination.html" %}
 </section>
 {% endblock %}

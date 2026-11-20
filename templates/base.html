@@ -9,6 +9,7 @@
   <link rel="icon" href="{% static 'logo.svg' %}" type="image/svg+xml">
   <script src="{% static 'js/theme.js' %}"></script>
   <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <link rel="stylesheet" href="{% static 'css/account.css' %}">
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -33,13 +34,24 @@
         <span aria-hidden="true"></span>
       </button>
       {% if user.is_authenticated %}
-        <a class="header-account" href="{% url 'mine' %}" aria-label="Личный кабинет"{% if request.resolver_match.url_name == "mine" %} aria-current="page"{% endif %}>
-          {% if user.profile.avatar %}
-          <img class="header-avatar" src="{% url 'avatar' user.pk %}" alt="">
-          {% else %}
-          <span class="header-avatar avatar-placeholder" aria-hidden="true">{{ user.profile.nickname|default:user.username|first|upper }}</span>
-          {% endif %}
-        </a>
+        {% firstof user.profile.nickname user.username as header_name %}
+        <details class="header-account-menu" data-account-menu>
+          <summary class="header-account" aria-label="Разделы личного кабинета">
+            {% if user.profile.avatar %}
+            <img class="header-avatar" src="{% url 'avatar' user.pk %}" alt="">
+            {% else %}
+            <span class="header-avatar avatar-placeholder" aria-hidden="true">{{ header_name|first|upper }}</span>
+            {% endif %}
+            <span class="header-account-name">{{ header_name }}</span>
+            <span class="header-account-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="header-account-links">
+            <nav aria-label="Личный кабинет">
+              {% include "account/links.html" %}
+              <a class="header-account-exit" href="{% url 'mine' %}?tab=logout">Выйти из аккаунта</a>
+            </nav>
+          </div>
+        </details>
       {% else %}
         <a class="button outline compact" href="{% url 'login' %}">Войти</a>
         <a class="button lime compact" href="{% url 'register' %}">Зарегистрироваться</a>
@@ -57,6 +69,7 @@
 {% if yandex_panorama_key %}{% include "street_walk_dialog.html" %}{% endif %}
 <script defer src="{% static 'js/interactions.js' %}"></script>
 <script defer src="{% static 'js/street_walk.js' %}"></script>
+{% if user.is_authenticated %}<script defer src="{% static 'js/account.js' %}"></script>{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

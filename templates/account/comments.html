@@ -1,0 +1,26 @@
+<section aria-labelledby="account-comments">
+  <header class="account-section-heading"><h2 id="account-comments">Комментарии к моим работам</h2></header>
+  <ul class="account-comment-list">
+    {% for entry in page %}
+    {% firstof entry.author.profile.nickname entry.author.username as author_name %}
+    <li class="panel account-text-card">
+      <div class="account-comment-heading">
+        <a class="account-comment-author" href="{% url 'profile' entry.author_id %}">
+          {% if entry.author.profile.avatar and entry.author.is_active %}
+          <img src="{% url 'avatar' entry.author_id %}" alt="" width="36" height="36" loading="lazy">
+          {% else %}
+          <span class="avatar-placeholder" aria-hidden="true">{{ author_name|first|upper }}</span>
+          {% endif %}
+          <strong>{{ author_name }}</strong>
+        </a>
+        <time datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:"j E Y, H:i" }}</time>
+      </div>
+      <p>{{ entry.text|linebreaksbr }}</p>
+      <a class="back-link" href="{% url 'placement' entry.placement_id %}#comments">{{ entry.placement.title }}</a>
+    </li>
+    {% empty %}
+    <li class="empty">У твоих работ пока нет комментариев от других пользователей.</li>
+    {% endfor %}
+  </ul>
+  {% include "pagination.html" %}
+</section>
