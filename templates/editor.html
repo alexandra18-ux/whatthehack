@@ -41,6 +41,7 @@
   <aside class="panel editor-panel">
     <fieldset>
       <legend>Фасад</legend>
+      {% include "street_walk_link.html" %}
       {{ form.facade.as_field_group }}
       {{ form.facade_file.as_field_group }}
     </fieldset>
@@ -61,5 +62,5 @@
 </form>
 {% endblock %}
 {% block scripts %}
-<script defer src="{% static 'js/placement_editor.js' %}"></script>
+<script defer src="{% static 'js/placement_editor.js' %}?v=2"></script>
 {% endblock %}

@@ -190,3 +190,9 @@
 .publication-title-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; width: 100%; }
 .publication-delete { gap: 6px; color: var(--error); }
 .account-logout-confirmation > p { margin-top: 9px; }
+
+.account-recovery-settings { margin-top: 16px; }
+.account-recovery-settings > p { margin-top: 8px; overflow-wrap: anywhere; }
+.account-recovery-change, .account-recovery-change > p { margin-top: 12px; }
+.account-recovery-change summary { cursor: pointer; }
+.account-recovery-change summary::-webkit-details-marker { display: none; }

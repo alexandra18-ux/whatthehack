@@ -305,9 +305,7 @@ inputs.facade.addEventListener("change", () => {
     choosePhoto();
 });
 inputs.facade_file.addEventListener("change", () => {
-    if (inputs.facade_file.files.length) {
-        inputs.facade.value = "";
-    }
+    if (inputs.facade_file.files.length) inputs.facade.value = "";
     choosePhoto();
 });
 inputs.design.addEventListener("change", () => {

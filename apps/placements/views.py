@@ -17,7 +17,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 from django.views.decorators.vary import vary_on_cookie, vary_on_headers
 
-from apps.buildings.addresses import CITY_FILTER, in_city
+from apps.buildings.addresses import CITY_FILTER, in_city, street_walk_url
 from apps.buildings.models import Building, FacadePhoto
 from apps.murals.models import MuralDesign
 
@@ -461,7 +461,11 @@ def create(request):
             project = save_project(building, request.user, form.cleaned_data, result)
             return redirect("placement", pk=project.pk)
 
-    return render(request, "editor.html", {"building": building, "form": form})
+    return render(request, "editor.html", {
+        "building": building,
+        "form": form,
+        "street_walk_url": street_walk_url(building.latitude, building.longitude),
+    })
 
 
 
@@ -497,4 +501,5 @@ def revise(request, pk):
     return render(request, "editor.html", {
         "building": project.building, "form": form, "revision": project,
         "preview_url": reverse("revision_preview", args=[project.pk]),
+        "street_walk_url": street_walk_url(project.building.latitude, project.building.longitude),
     })

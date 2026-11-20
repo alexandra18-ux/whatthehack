@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.utils.html import escape
 from PIL import Image
 
-from apps.buildings.models import Building
+from apps.buildings.models import Building, Panorama
 from apps.users.models import AccountRestriction
 
 from .models import Comment, CommentDeletion, CommentLike, ModerationDecision, Placement, Rating
@@ -56,6 +56,21 @@ class PlacementWorkflowTests(TestCase):
         self.assertEqual(image.getpixel((0, 0)), (200, 200, 200))
         self.assertEqual(image.getpixel((40, 30)), (100, 150, 200))
         self.assertFalse(Placement.objects.exists())
+
+    def test_saved_panorama_facade_remains_available_as_a_photo(self):
+        response = self.client.post(reverse("create"), self.payload())
+        project = Placement.objects.get()
+        panorama = Panorama.objects.create(building=self.building, title="Архивная панорама", credit="Автор панорамы")
+        project.facade_photo.panorama = panorama
+        project.facade_photo.save(update_fields=["panorama"])
+        self.assertContains(self.client.get(response.url), panorama.credit)
+
+        project.status = Placement.Status.REVISION
+        project.save(update_fields=["status"])
+        editor = self.client.get(reverse("revise", args=[project.pk]))
+        self.assertEqual(editor.context["form"].initial["facade"], project.facade_photo_id)
+        self.assertContains(editor, 'target="_blank" rel="noopener noreferrer">Открыть в Яндекс Картах')
+        self.assertNotContains(editor, 'id="panorama-dialog"')
 
     def test_invalid_corners_and_image_produce_field_errors(self):
         payload = self.payload()

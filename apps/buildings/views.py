@@ -1,13 +1,13 @@
 from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.cache import never_cache
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods
 
-from .addresses import AddressSearchUnavailable, CITY_FILTER, address_at, get_address, in_city
+from .addresses import AddressSearchUnavailable, CITY_FILTER, address_at, get_address, in_city, street_walk_url
 from .models import Building
 
 
@@ -18,6 +18,7 @@ def building_data(building):
         "latitude": float(building.latitude),
         "longitude": float(building.longitude),
         "url": reverse("building", args=[building.pk]),
+        "street_walk_url": street_walk_url(building.latitude, building.longitude),
     }
 
 
@@ -53,6 +54,7 @@ def map_address(request):
     return JsonResponse({
         "address": address.label,
         "ticket": address.ticket,
+        "street_walk_url": address.street_walk_url,
         "is_authenticated": request.user.is_authenticated,
     })
 
@@ -73,8 +75,15 @@ def detail(request, pk):
     return render(request, "building.html", {
         "building": building,
         "facades": building.facades.filter(is_public=True),
+        "street_walk_url": street_walk_url(building.latitude, building.longitude),
         "projects": published_placements().filter(building=building),
     })
+
+
+@require_GET
+def building_panorama(request, pk):
+    building = get_object_or_404(Building, pk=pk)
+    return redirect(street_walk_url(building.latitude, building.longitude))
 
 
 @login_required

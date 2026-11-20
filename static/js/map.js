@@ -104,6 +104,13 @@
     updateHint();
 
     const addressResult = document.querySelector("#map-address-result");
+    const streetWalkLink = document.querySelector("#map-street-walk-link");
+
+    function appendStreetWalk(container, url) {
+        const link = streetWalkLink.content.querySelector("a").cloneNode(true);
+        link.href = url;
+        container.append(link);
+    }
     let selection;
     let lookup;
 
@@ -177,6 +184,7 @@
                     loginLink.href = login.href;
                     loginLink.hidden = false;
                 }
+                appendStreetWalk(popupContent, result.street_walk_url);
             }
         } catch (error) {
             if (controller.signal.aborted) return;
@@ -213,6 +221,7 @@
             link.href = entry.url;
             link.textContent = entry[label];
             item.append(link);
+            if (entry.street_walk_url) appendStreetWalk(item, entry.street_walk_url);
             list.append(item);
         }
         popup.append(heading, list);
