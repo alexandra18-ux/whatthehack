@@ -1,15 +1,23 @@
 (() => {
     const element = document.querySelector("#city-map");
     const hint = document.querySelector("#map-hint");
-    const addLink = document.querySelector("#map-add");
+    const addressButtons = [...document.querySelectorAll("[data-address-point]")];
     const leaflet = window.L;
     if (!leaflet) {
-        hint.textContent = "Карта недоступна. Выберите здание в списке или введите координаты вручную.";
+        hint.textContent = "Карта недоступна. Здание можно выбрать по адресу или из списка.";
         return;
     }
 
     const coordinates = ({ latitude, longitude }) => [latitude, longitude];
-    const map = leaflet.map(element, { scrollWheelZoom: false }).setView([51.5335, 46.0343], 13);
+    const bounds = JSON.parse(document.querySelector("#saratov-map-bounds").textContent);
+    const addressPoint = (button) => [Number(button.dataset.latitude), Number(button.dataset.longitude)];
+    const firstAddress = addressButtons[0];
+    const map = leaflet.map(element, {
+        scrollWheelZoom: false, minZoom: 12, maxBounds: bounds, maxBoundsViscosity: 1,
+        zoomControl: false,
+    }).setView(firstAddress ? addressPoint(firstAddress) : [51.5335, 46.0343], firstAddress ? 17 : 13);
+    leaflet.control.zoom({ zoomInTitle: "Приблизить", zoomOutTitle: "Отдалить" }).addTo(map);
+    map.attributionControl.setPrefix(false);
     let tileErrors = false;
     let incompleteData = false;
 
@@ -29,12 +37,20 @@
         tileerror() { tileErrors = true; updateHint(); },
         load: updateHint,
     }).addTo(map);
+    const cityBoundary = JSON.parse(document.querySelector("#saratov-city-boundary").textContent);
+    const outside = [[50, 44], [50, 48], [53, 48], [53, 44]];
+    leaflet.polygon([outside, ...cityBoundary], {
+        stroke: false, fillColor: "#e6ebe0", fillOpacity: 0.88, interactive: false,
+    }).addTo(map);
+    leaflet.polyline(cityBoundary, {
+        color: "#40542b", opacity: 0.56, weight: 1.5, interactive: false,
+    }).addTo(map);
     element.classList.add("is-live");
     updateHint();
 
     let selection;
-    map.on("click", (event) => {
-        const point = map.wrapLatLng(event.latlng);
+    function showAddress(button) {
+        const point = addressPoint(button);
         if (selection) {
             selection.setLatLng(point);
         } else {
@@ -43,12 +59,20 @@
                 fillOpacity: 1, interactive: false,
             }).addTo(map);
         }
-        const url = new URL(element.dataset.newBuilding, location.origin);
-        url.searchParams.set("latitude", point.lat.toFixed(6));
-        url.searchParams.set("longitude", point.lng.toFixed(6));
-        addLink.href = url;
-        addLink.hidden = false;
-    });
+        map.setView(point, 17);
+        for (const option of addressButtons) {
+            option.setAttribute("aria-pressed", String(option === button));
+        }
+    }
+
+    for (const button of addressButtons) {
+        button.hidden = false;
+        button.addEventListener("click", () => {
+            showAddress(button);
+            element.scrollIntoView({ block: "nearest" });
+        });
+    }
+    if (firstAddress) showAddress(firstAddress);
 
     async function load(url, key) {
         const response = await fetch(url);
@@ -107,7 +131,7 @@
                 title,
             }).addTo(map).bindPopup(popup);
             marker.getElement().setAttribute("aria-label", title);
-            if (group.buildings.some((building) => String(building.id) === element.dataset.selected)) {
+            if (!firstAddress && group.buildings.some((building) => String(building.id) === element.dataset.selected)) {
                 map.setView(group.point, 16);
                 marker.openPopup();
             }

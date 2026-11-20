@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.nickname|default:profile_user.username }} · Muralium{% endblock %}
+{% block content %}
+{% include "profile_header.html" %}
+<section class="section">
+  <header class="section-heading"><h2>Опубликованные работы</h2></header>
+  {% include "project_grid.html" with empty_copy="У автора пока нет опубликованных работ." %}
+  {% include "pagination.html" %}
+</section>
+{% endblock %}

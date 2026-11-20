@@ -22,6 +22,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-muralium}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-muralium-local}
       MAP_TILE_URL: ${MAP_TILE_URL:-}
+      GEOCODER_URL: ${GEOCODER_URL:-}
     depends_on:
       db:
         condition: service_healthy

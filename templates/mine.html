@@ -1,6 +1,22 @@
 {% extends "base.html" %}
-{% block title %}Мои проекты · Muralium{% endblock %}
+{% block title %}Личный кабинет · Muralium{% endblock %}
 {% block content %}
-<header class="page-heading"><h1>Мои проекты</h1><a class="button lime" href="{% url 'map' %}">Создать проект</a></header>
-{% include "project_grid.html" %}
+{% include "profile_header.html" with own_profile=True %}
+<section class="panel profile-settings">
+  <h2>Настройки профиля</h2>
+  <form method="post" enctype="multipart/form-data" class="field-stack">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {{ form.nickname.as_field_group }}
+    {{ form.avatar.as_field_group }}
+    {% if profile.avatar %}<div class="profile-check">{{ form.remove_avatar.as_field_group }}</div>{% endif %}
+    <button class="button lime">Сохранить профиль</button>
+  </form>
+  <a class="back-link" href="{% url 'profile' profile_user.pk %}">Открыть публичный профиль</a>
+</section>
+<section class="section">
+  <header class="section-heading"><h2>Моя стена</h2><a class="button lime" href="{% url 'map' %}">Создать проект</a></header>
+  {% include "project_grid.html" with empty_copy="У вас пока нет проектов." %}
+  {% include "pagination.html" %}
+</section>
 {% endblock %}

@@ -1,17 +1,11 @@
-from django import forms
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
+from .addresses import CITY_FILTER, get_address, in_city
 from .models import Building
-
-
-class BuildingForm(forms.ModelForm):
-    class Meta:
-        model = Building
-        fields = ["address", "latitude", "longitude"]
 
 
 def building_data(building):
@@ -24,8 +18,17 @@ def building_data(building):
     }
 
 
+def city_buildings():
+    return [
+        item for item in Building.objects.filter(**CITY_FILTER)
+        if in_city(item.latitude, item.longitude)
+    ]
+
+
 def buildings_api(request):
-    return JsonResponse({"buildings": [building_data(item) for item in Building.objects.all()]})
+    return JsonResponse({"buildings": [
+        building_data(item) for item in city_buildings()
+    ]})
 
 
 def catalog(request, pk, kind):
@@ -51,10 +54,13 @@ def detail(request, pk):
 @login_required
 @require_http_methods(["GET", "POST"])
 def add_building(request):
-    form = BuildingForm(
-        request.POST if request.method == "POST" else None,
-        initial={key: request.GET.get(key) for key in ("latitude", "longitude")},
+    if request.method == "GET":
+        return redirect(f"{reverse('map')}#address-search")
+    address = get_address(request.POST.get("address_ticket", ""))
+    if address is None:
+        raise Http404("Результат поиска устарел. Найдите адрес снова.")
+    building, _ = Building.objects.get_or_create(
+        osm_ref=address.ref,
+        defaults={"address": address.label, "latitude": address.latitude, "longitude": address.longitude},
     )
-    if form.is_valid():
-        return redirect(f"{reverse('create')}?building={form.save().pk}")
-    return render(request, "building_form.html", {"form": form})
+    return redirect(f"{reverse('create')}?building={building.pk}")

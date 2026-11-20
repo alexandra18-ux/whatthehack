@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "apps.buildings",
     "apps.murals",
     "apps.placements",
+    "apps.users",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -90,3 +91,4 @@ MEDIA_ROOT = BASE_DIR / "media"
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 MAP_TILE_URL = os.getenv("MAP_TILE_URL") or "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+GEOCODER_URL = os.getenv("GEOCODER_URL") or "https://photon.komoot.io/api/"

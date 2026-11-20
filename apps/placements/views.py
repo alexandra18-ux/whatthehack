@@ -1,6 +1,9 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Prefetch
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -8,22 +11,21 @@ from django.utils.cache import add_never_cache_headers
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 
+from apps.buildings.addresses import CITY_FILTER, in_city
 from apps.buildings.models import Building, FacadePhoto
 from apps.murals.models import MuralDesign
 
-from .forms import PlacementForm
-from .models import Placement, can_moderate, published_placements
+from .forms import CommentForm, PlacementForm, RatingForm
+from .models import Comment, Placement, Rating, can_moderate, published_placements, with_ratings
 from .services.perspective import encode_image, render_placement
 
 
 def home(request):
-    return render(request, "home.html", {"projects": published_placements()[:12]})
-
-
-@login_required
-def mine(request):
-    projects = Placement.objects.filter(author=request.user).select_related("building", "author")
-    return render(request, "mine.html", {"projects": projects})
+    comments = Comment.objects.select_related("author__profile")[:3]
+    projects = with_ratings(published_placements(), request.user)
+    projects = projects.prefetch_related(Prefetch("comments", queryset=comments, to_attr="recent_comments"))
+    page = Paginator(projects, 8).get_page(request.GET.get("page"))
+    return render(request, "home.html", {"projects": list(page.object_list), "page": page, "in_feed": True})
 
 
 def map_api(request):
@@ -37,7 +39,10 @@ def map_api(request):
             "image": reverse("project_image", args=[project.pk, "result"]),
             "url": reverse("placement", args=[project.pk]),
         }
-        for project in published_placements()
+        for project in published_placements().filter(**{
+            f"building__{field}": bounds for field, bounds in CITY_FILTER.items()
+        })
+        if in_city(project.building.latitude, project.building.longitude)
     ]})
 
 
@@ -45,10 +50,11 @@ def is_published(project):
     return project.status == Placement.Status.APPROVED and project.published_at is not None
 
 
-def visible_project(request, pk):
-    project = get_object_or_404(
-        Placement.objects.select_related("building", "author", "facade_photo"), pk=pk,
-    )
+def visible_project(request, pk, *, include_ratings=False):
+    projects = Placement.objects.select_related("building", "author__profile", "facade_photo")
+    if include_ratings:
+        projects = with_ratings(projects, request.user)
+    project = get_object_or_404(projects, pk=pk)
     if is_published(project) or project.author_id == request.user.pk or can_moderate(request.user):
         return project
     raise Http404
@@ -56,7 +62,49 @@ def visible_project(request, pk):
 
 @never_cache
 def detail(request, pk):
-    return render(request, "placement.html", {"project": visible_project(request, pk)})
+    project = visible_project(request, pk, include_ratings=True)
+    published = is_published(project)
+    page = Paginator(project.comments.select_related("author__profile"), 20).get_page(
+        request.GET.get("page"),
+    ) if published else None
+    return render(request, "placement.html", {
+        "project": project, "published": published,
+        "comments": page.object_list if page else [], "page": page,
+    })
+
+
+def discussion_redirect(request, project, section):
+    if request.POST.get("source") == "feed":
+        page = request.POST.get("page", "")
+        query = f"?page={page}" if page.isascii() and page.isdecimal() and len(page) <= 9 else ""
+        return redirect(f"{reverse('home')}{query}#project-{project.pk}")
+    return redirect(f"{reverse('placement', args=[project.pk])}#{section}")
+
+
+@login_required
+@require_POST
+def rate(request, pk):
+    project = get_object_or_404(published_placements(), pk=pk)
+    form = RatingForm(request.POST)
+    if form.is_valid():
+        Rating.objects.update_or_create(
+            placement=project, author=request.user, defaults={"score": form.cleaned_data["score"]},
+        )
+    else:
+        messages.error(request, "Выберите оценку от 1 до 5.")
+    return discussion_redirect(request, project, "rating")
+
+
+@login_required
+@require_POST
+def comment(request, pk):
+    project = get_object_or_404(published_placements(), pk=pk)
+    form = CommentForm(request.POST)
+    if form.is_valid():
+        Comment.objects.create(placement=project, author=request.user, text=form.cleaned_data["text"])
+    else:
+        messages.error(request, "Введите комментарий длиной от 1 до 800 символов.")
+    return discussion_redirect(request, project, "comments")
 
 
 def image_response(image):

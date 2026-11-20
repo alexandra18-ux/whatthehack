@@ -9,6 +9,14 @@ from apps.murals.models import MuralDesign
 from .services.perspective import read_image, validate_corners
 
 
+class RatingForm(forms.Form):
+    score = forms.IntegerField(min_value=1, max_value=5)
+
+
+class CommentForm(forms.Form):
+    text = forms.CharField(max_length=800, label="Комментарий")
+
+
 class PlacementForm(forms.Form):
     title = forms.CharField(max_length=200, label="Название")
     description = forms.CharField(

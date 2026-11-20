@@ -5,6 +5,7 @@ from django.db import models
 
 class Building(models.Model):
     address = models.CharField("Адрес", max_length=220)
+    osm_ref = models.CharField(max_length=24, unique=True, null=True, blank=True, editable=False)
     latitude = models.DecimalField(
         "Широта", max_digits=9, decimal_places=6,
         validators=[MinValueValidator(-90), MaxValueValidator(90)],

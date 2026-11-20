@@ -5,20 +5,24 @@ from django.urls import path
 from apps.buildings import views as buildings
 from apps.maps.views import maps
 from apps.placements import views as placements
-from apps.users.views import register
+from apps.users import views as users
 
 urlpatterns = [
     path("", placements.home, name="home"),
     path("admin/", admin.site.urls),
-    path("accounts/register/", register, name="register"),
+    path("accounts/register/", users.register, name="register"),
     path("accounts/login/", auth_views.LoginView.as_view(), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("maps/", maps, name="map"),
     path("buildings/new/", buildings.add_building, name="building_add"),
     path("buildings/<int:pk>/", buildings.detail, name="building"),
     path("placements/create/", placements.create, name="create"),
-    path("placements/my/", placements.mine, name="mine"),
+    path("placements/my/", users.account, name="mine"),
+    path("people/<int:pk>/", users.public_profile, name="profile"),
+    path("people/<int:pk>/avatar/", users.avatar, name="avatar"),
     path("placements/<int:pk>/", placements.detail, name="placement"),
+    path("placements/<int:pk>/rating/", placements.rate, name="rate"),
+    path("placements/<int:pk>/comments/", placements.comment, name="comment"),
     path("placements/<int:pk>/image/<str:kind>/", placements.project_image, name="project_image"),
     path("images/<str:kind>/<int:pk>/", placements.asset, name="asset"),
     path("api/buildings/", buildings.buildings_api, name="buildings_api"),

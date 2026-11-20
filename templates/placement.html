@@ -5,9 +5,11 @@
 <header class="page-heading">
   <p class="status">{{ project.get_status_display }}</p>
   <h1>{{ project.title }}</h1>
-  <p>{{ project.author.username }}{% if project.published_at %} · {{ project.published_at|date:"j E Y" }}{% endif %}</p>
+  <p><a href="{% url 'profile' project.author_id %}">{{ project.author.profile.nickname|default:project.author.username }}</a>{% if project.published_at %} · {{ project.published_at|date:"j E Y" }}{% endif %}</p>
 </header>
 {% if project.rejection_reason %}<p class="notice">{{ project.rejection_reason }}</p>{% endif %}
+<div class="project-detail-layout">
+<div>
 <div class="comparison" data-comparison>
   <div class="segmented" aria-label="Сравнение фасада">
     <button type="button" data-show="before" aria-pressed="false">До</button>
@@ -17,5 +19,9 @@
   <img class="building-cover" data-image="before" src="{% url 'project_image' project.pk 'before' %}" alt="Исходный фасад" loading="lazy" hidden>
 </div>
 <div class="project-description">{{ project.description|linebreaks }}<a class="button outline" href="{% url 'map' %}?building={{ project.building_id }}">Здание на карте</a></div>
+{% if published %}{% include "rating.html" %}{% endif %}
+</div>
+{% if published %}{% include "discussion.html" %}{% endif %}
+</div>
 {% endblock %}
 {% block scripts %}<script defer src="{% static 'js/comparison.js' %}"></script>{% endblock %}

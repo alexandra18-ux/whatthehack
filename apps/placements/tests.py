@@ -7,11 +7,12 @@ from django.contrib.auth.models import Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 from PIL import Image
 
 from apps.buildings.models import Building
 
-from .models import Placement
+from .models import Comment, Placement, Rating
 
 
 class PlacementWorkflowTests(TestCase):
@@ -19,7 +20,9 @@ class PlacementWorkflowTests(TestCase):
         media = TemporaryDirectory()
         self.addCleanup(media.cleanup)
         self.enterContext(self.settings(MEDIA_ROOT=media.name))
-        self.building = Building.objects.create(address="Тестовый фасад", latitude=51, longitude=46)
+        self.building = Building.objects.create(
+            address="Тестовый фасад", latitude=51.529990, longitude=46.035350,
+        )
         self.owner = get_user_model().objects.create_user(username="author")
         self.client.force_login(self.owner)
         self.corners = [
@@ -71,7 +74,9 @@ class PlacementWorkflowTests(TestCase):
         admin = reverse("admin:placements_placement_change", args=[project.pk])
         self.assertRedirects(response, detail)
         self.assertEqual(project.status, Placement.Status.PENDING)
-        self.assertEqual(self.client.get(result).status_code, 200)
+        response = self.client.get(result)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(b"".join(response.streaming_content))
         self.assertNotEqual(self.client.post(admin, {"status": "approved"}).status_code, 200)
 
         visitor = Client()
@@ -88,8 +93,67 @@ class PlacementWorkflowTests(TestCase):
         project.refresh_from_db()
         self.assertIsNotNone(project.published_at)
         for url in (detail, result, before):
-            self.assertEqual(visitor.get(url).status_code, 200)
+            response = visitor.get(url)
+            self.assertEqual(response.status_code, 200)
+            if response.streaming:
+                self.assertTrue(b"".join(response.streaming_content))
         for url in (facade, design):
             self.assertEqual(visitor.get(url).status_code, 404)
         self.assertEqual(visitor.get(reverse("map_api")).json()["projects"][0]["id"], project.pk)
         self.assertContains(visitor.get(reverse("home")), project.title)
+
+    def test_published_projects_accept_one_editable_rating_and_comments(self):
+        self.client.post(reverse("create"), self.payload())
+        project = Placement.objects.get()
+        rate = reverse("rate", args=[project.pk])
+        comment = reverse("comment", args=[project.pk])
+        self.assertEqual(self.client.post(rate, {"score": 4}).status_code, 404)
+        self.assertEqual(self.client.post(comment, {"text": "Комментарий"}).status_code, 404)
+
+        project.status = Placement.Status.APPROVED
+        project.published_at = timezone.now()
+        project.save(update_fields=["status", "published_at"])
+        visitor = Client()
+        self.assertEqual(visitor.post(rate, {"score": 4}).status_code, 302)
+        self.assertEqual(visitor.post(comment, {"text": "От гостя"}).status_code, 302)
+        self.assertFalse(Rating.objects.exists())
+        self.assertFalse(Comment.objects.exists())
+
+        self.client.post(rate, {"score": 4})
+        self.client.post(rate, {"score": 5})
+        self.client.post(rate, {"score": 0})
+        self.assertEqual(list(Rating.objects.values_list("score", flat=True)), [5])
+        self.client.post(comment, {"text": "Хорошая работа!"})
+        self.client.post(comment, {"text": "  "})
+        self.assertEqual(list(Comment.objects.values_list("text", flat=True)), ["Хорошая работа!"])
+        feed = visitor.get(reverse("home"))
+        self.assertContains(feed, "Хорошая работа!")
+        self.assertContains(feed, "5,0 из 5")
+
+    def test_profile_avatar_and_private_wall_do_not_publish_pending_projects(self):
+        self.client.post(reverse("create"), self.payload())
+        project = Placement.objects.get()
+        account = reverse("mine")
+        public = reverse("profile", args=[self.owner.pk])
+        icon = reverse("avatar", args=[self.owner.pk])
+        response = self.client.post(account, {
+            "nickname": "Artist Studio",
+            "avatar": self.upload("avatar.png", "RGB", (65, 75, 85)),
+        })
+        self.assertRedirects(response, account)
+        self.assertContains(self.client.get(account), project.title)
+        visitor = Client()
+        self.assertContains(visitor.get(public), "Artist Studio")
+        self.assertNotContains(visitor.get(public), project.title)
+        response = visitor.get(icon)
+        self.assertEqual(response["Content-Type"], "image/png")
+        with Image.open(io.BytesIO(b"".join(response.streaming_content))) as image:
+            self.assertEqual(image.size, (256, 256))
+
+        original = self.owner.profile.avatar
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(account, {
+                "nickname": "Artist Studio",
+                "avatar": self.upload("new-avatar.png", "RGB", (85, 75, 65)),
+            })
+        self.assertFalse(original.storage.exists(original.name))

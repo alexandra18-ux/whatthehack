@@ -1,0 +1,11 @@
+<header class="profile-header">
+  {% if profile.avatar %}
+  <img class="profile-avatar" src="{% url 'avatar' profile_user.pk %}" alt="">
+  {% else %}
+  <span class="profile-avatar avatar-placeholder" aria-hidden="true">{{ profile.nickname|default:profile_user.username|first|upper }}</span>
+  {% endif %}
+  <div>
+    {% if own_profile %}<h1>Личный кабинет</h1><p>{{ profile.nickname|default:profile_user.username }}</p>
+    {% else %}<h1>{{ profile.nickname|default:profile_user.username }}</h1>{% endif %}
+  </div>
+</header>
