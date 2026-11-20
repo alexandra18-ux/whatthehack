@@ -2,7 +2,7 @@
 {% block title %}Карта Саратова · Muralium{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endblock %}
 {% block content %}
-<header class="page-heading"><h1>Карта Саратова</h1><p>Найдите фасад по адресу или выберите здание с проектами.</p></header>
+<header class="page-heading"><h1>Карта Саратова</h1><p>Введите адрес или нажмите на здание на карте.</p></header>
 <div class="map-layout">
   <aside class="panel building-list" id="address-search">
     <h2>Найти здание</h2>
@@ -35,6 +35,18 @@
     {% elif matches is not None %}
       <p class="notice">Адрес не найден. Проверьте улицу и номер дома или выберите здание из списка.</p>
     {% endif %}
+    <template id="map-address-result">
+      <p id="map-address-status" role="status"></p>
+      {% if user.is_authenticated %}
+      <form method="post" action="{% url 'building_add' %}" id="map-address-action" hidden>
+        {% csrf_token %}
+        <input type="hidden" name="address_ticket">
+        <button class="button lime compact">Создать проект</button>
+      </form>
+      {% else %}
+      <a class="button outline compact" id="map-address-action" href="{% url 'login' %}?next={% url 'map' %}" hidden>Войти для создания</a>
+      {% endif %}
+    </template>
     <p class="card-meta">Адреса OpenStreetMap через <a href="https://photon.komoot.io/">Photon</a>.</p>
     <h2>Здания в каталоге</h2>
     {% for building in buildings %}
@@ -46,6 +58,7 @@
   <section class="map-panel" aria-label="Карта и метки зданий">
     <div id="city-map" class="city-map" aria-label="Интерактивная карта Саратова"
          data-buildings="{% url 'buildings_api' %}" data-projects="{% url 'map_api' %}"
+         data-address="{% url 'map_address' %}"
          data-selected="{{ selected_building }}" data-tile-url="{{ map_tile_url }}"></div>
     <div class="map-footer">
       <div class="map-legend" aria-label="Обозначения карты">

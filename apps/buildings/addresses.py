@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from decimal import Decimal
 from functools import lru_cache
 from hashlib import sha256
+from math import hypot
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urljoin
 from urllib.request import Request, urlopen
 
 import cv2
@@ -102,7 +103,33 @@ def from_feature(feature):
 
 def find_addresses(query):
     normalized = " ".join(query.split())
-    digest = sha256((settings.GEOCODER_URL + "|" + normalized.casefold()).encode()).hexdigest()
+    return geocode(settings.GEOCODER_URL, {
+        "q": normalized if "саратов" in normalized.casefold() else f"Саратов, {normalized}",
+        "layer": "house",
+        "limit": 12,
+        "bbox": f"{WEST},{SOUTH},{EAST},{NORTH}",
+    })[:8]
+
+
+def address_at(latitude, longitude):
+    reverse_url = urljoin(settings.GEOCODER_URL.rstrip("/") + "/", "../reverse/")
+    matches = geocode(reverse_url, {
+        "lat": f"{latitude:.5f}", "lon": f"{longitude:.5f}", "layer": "house", "limit": 10,
+    })
+
+    def distance(address):
+        return hypot(
+            float(address.latitude - latitude) * 111_200,
+            float(address.longitude - longitude) * 69_300,
+        )
+
+    nearest = min(matches, key=distance, default=None)
+    return nearest if nearest and distance(nearest) <= 150 else None
+
+
+def geocode(url, params):
+    query = urlencode(params)
+    digest = sha256(f"{url}?{query}".casefold().encode()).hexdigest()
     key = f"saratov-address:{digest}"
     matches = cache.get(key)
     if matches is not None:
@@ -110,13 +137,7 @@ def find_addresses(query):
     if not cache.add("saratov-geocoding-request", True, timeout=1):
         raise AddressSearchUnavailable
 
-    params = urlencode({
-        "q": normalized if "саратов" in normalized.casefold() else f"Саратов, {normalized}",
-        "layer": "house",
-        "limit": 12,
-        "bbox": f"{WEST},{SOUTH},{EAST},{NORTH}",
-    })
-    request = Request(f"{settings.GEOCODER_URL}?{params}", headers={
+    request = Request(f"{url}?{query}", headers={
         "User-Agent": "Muralium/1.0 (Saratov address search)",
         "Accept": "application/json",
     })
@@ -133,7 +154,7 @@ def find_addresses(query):
     for feature in features:
         if isinstance(feature, dict) and (address := from_feature(feature)):
             matches.setdefault(address.label.casefold(), address)
-    results = list(matches.values())[:8]
+    results = list(matches.values())
     cache.set(key, results, timeout=86400 if results else 3600)
     return results
 

@@ -1,10 +1,11 @@
 import io
 import json
+from urllib.parse import parse_qs, urlparse
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.buildings.addresses import find_addresses
@@ -50,3 +51,31 @@ class MapPageTests(TestCase):
         building = Building.objects.get()
         self.assertEqual(building.osm_ref, "w100909666")
         self.assertEqual(self.client.get(reverse("buildings_api")).json()["buildings"][0]["id"], building.pk)
+
+    @override_settings(GEOCODER_URL="https://example.org/photon/api/")
+    @patch("apps.buildings.addresses.urlopen")
+    def test_map_click_resolves_a_nearby_address_for_creation(self, urlopen):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        urlopen.return_value = io.BytesIO(json.dumps({
+            "features": [{
+                "properties": {"osm_type": "W", "osm_id": 100909666, "street": "Московская улица", "housenumber": "55"},
+                "geometry": {"type": "Point", "coordinates": [46.0390643, 51.5327164]},
+            }],
+        }).encode())
+        url = reverse("map_address")
+        self.assertEqual(self.client.get(url, {"lat": "nan", "lon": "46"}).status_code, 400)
+        self.assertEqual(self.client.get(url, {"lat": "51.4949444", "lon": "46.1344316"}).status_code, 400)
+        urlopen.assert_not_called()
+
+        response = self.client.get(url, {"lat": "51.53270", "lon": "46.03900"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["address"], "Московская улица, 55")
+        requested = urlparse(urlopen.call_args.args[0].full_url)
+        self.assertEqual(requested.path, "/photon/reverse/")
+        self.assertEqual(parse_qs(requested.query)["layer"], ["house"])
+
+        self.client.force_login(get_user_model().objects.create_user(username="map-artist"))
+        created = self.client.post(reverse("building_add"), {"address_ticket": response.json()["ticket"]})
+        building = Building.objects.get(osm_ref="w100909666")
+        self.assertRedirects(created, f"{reverse('create')}?building={building.pk}")

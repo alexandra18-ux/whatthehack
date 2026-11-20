@@ -12,7 +12,7 @@ from PIL import Image
 
 from apps.buildings.models import Building
 
-from .models import Comment, Placement, Rating
+from .models import Comment, CommentLike, Placement, Rating
 
 
 class PlacementWorkflowTests(TestCase):
@@ -56,12 +56,21 @@ class PlacementWorkflowTests(TestCase):
 
     def test_invalid_corners_and_image_produce_field_errors(self):
         payload = self.payload()
-        payload["corners"] = json.dumps([self.corners[index] for index in (0, 2, 1, 3)])
+        payload["corners"] = json.dumps([*self.corners[:3], {"x": .7, "y": .4}])
         payload["mural_file"] = SimpleUploadedFile("broken.png", b"invalid")
         response = self.client.post(reverse("preview"), payload)
         self.assertEqual(response.status_code, 400)
         self.assertIn("corners", response.json()["errors"])
         self.assertIn("mural_file", response.json()["errors"])
+
+    def test_corner_order_does_not_change_preview(self):
+        expected = self.client.post(reverse("preview"), self.payload())
+        for order in [(0, 3, 2, 1), (2, 0, 3, 1)]:
+            payload = self.payload()
+            payload["corners"] = json.dumps([self.corners[index] for index in order])
+            response = self.client.post(reverse("preview"), payload)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.content, expected.content)
 
     def test_moderation_controls_project_visibility_and_keeps_assets_private(self):
         response = self.client.post(reverse("create"), {**self.payload(), "status": "approved"})
@@ -164,6 +173,32 @@ class PlacementWorkflowTests(TestCase):
         detail = self.client.get(reverse("placement", args=[older.pk]))
         self.assertContains(detail, f'href="{url}?post={older.pk}#projects"')
         self.assertContains(detail, "publication-author-name")
+
+    def test_feed_fills_stars_and_shows_only_the_most_liked_comment(self):
+        project = self.create_work("Работа", timezone.now())
+        highlighted = Comment.objects.create(placement=project, author=self.owner, text="Популярный отзыв")
+        newest = Comment.objects.create(placement=project, author=self.owner, text="Новый отзыв")
+        rate = reverse("rate", args=[project.pk])
+        like = reverse("like_comment", args=[highlighted.pk])
+        feed = reverse("home")
+
+        self.assertContains(self.client.get(feed), "☆", count=5)
+        self.client.post(rate, {"score": 3})
+        self.assertContains(self.client.get(feed), "★", count=3)
+        self.assertContains(self.client.get(feed), "☆", count=2)
+        self.assertEqual(Client().post(like, {"liked": "1"}).status_code, 302)
+        self.assertFalse(CommentLike.objects.exists())
+        for _ in range(2):
+            self.client.post(like, {"liked": "1", "source": "feed"})
+        self.assertEqual(CommentLike.objects.count(), 1)
+        response = self.client.get(feed)
+        self.assertContains(response, highlighted.text)
+        self.assertNotContains(response, newest.text)
+        details = reverse("placement", args=[project.pk])
+        self.assertContains(response, f'href="{details}#comments"')
+        self.assertContains(self.client.get(details), newest.text)
+        self.client.post(like, {"liked": "0"})
+        self.assertContains(self.client.get(feed), newest.text)
 
     def test_author_rating_weights_each_rated_public_work_equally(self):
         published_at = timezone.now()

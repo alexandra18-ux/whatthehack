@@ -14,7 +14,6 @@ const submitButton = document.querySelector("#submit-placement");
 const beforeButton = document.querySelector("#show-before");
 const afterButton = document.querySelector("#show-after");
 const inputs = form.elements;
-const cornerNames = ["верхний левый", "верхний правый", "нижний правый", "нижний левый"];
 
 let points = [];
 let photo = null;
@@ -26,6 +25,22 @@ let hasDesign = false;
 let drag = null;
 let pending = null;
 let mode = "before";
+let outline = null;
+
+function orderedOutline(corners) {
+    if (corners.length !== 4) return null;
+    const cx = corners.reduce((sum, p) => sum + p.x, 0) / 4;
+    const cy = corners.reduce((sum, p) => sum + p.y, 0) / 4;
+    const angle = (p) => Math.atan2(p.y - cy, p.x - cx);
+    const ordered = [...corners].sort((a, b) => angle(a) - angle(b));
+    const turns = ordered.map((a, i) => {
+        const b = ordered[(i + 1) % 4];
+        const c = ordered[(i + 2) % 4];
+        return (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+    });
+    if (turns.some((turn) => turn <= 1e-5) || turns.reduce((sum, turn) => sum + turn, 0) < 0.004) return null;
+    return ordered;
+}
 
 function setMessage(text, error = false) {
     message.textContent = text;
@@ -33,7 +48,7 @@ function setMessage(text, error = false) {
 }
 
 function refreshControls() {
-    const canPreview = Boolean(photo) && hasDesign && points.length === 4 && !pending;
+    const canPreview = Boolean(photo && hasDesign && outline && !pending);
     previewButton.disabled = !canPreview;
     submitButton.disabled = !canPreview || !renderedUrl;
     afterButton.disabled = !renderedUrl;
@@ -46,12 +61,14 @@ function refreshControls() {
 
     if (mode === "after") {
         help.textContent = "Нажмите «До», чтобы скорректировать углы.";
-    } else if (points.length === 4) {
+    } else if (points.length === 4 && !outline) {
+        help.textContent = "Разведите точки так, чтобы они стали четырьмя внешними углами стены.";
+    } else if (outline) {
         help.textContent = "Перетащите угол или выберите его клавишей Tab. Стрелки сдвигают точку на пиксель, Shift со стрелкой — на 10.";
     } else {
         help.textContent = photo
-            ? "Следующий угол — " + cornerNames[points.length] + "."
-            : "Укажите четыре угла по часовой стрелке, начиная с верхнего левого.";
+            ? "Отметьте угол " + (points.length + 1) + " из 4. Порядок произвольный."
+            : "Укажите четыре угла стены в любом порядке.";
     }
 }
 
@@ -78,7 +95,8 @@ function draw() {
     });
     if (points.length === 0) return;
     ctx.beginPath();
-    points.forEach((point, index) => {
+    if (points.length === 4 && !outline) return;
+    (outline || points).forEach((point, index) => {
         const x = point.x * width;
         const y = point.y * height;
         if (index === 0) ctx.moveTo(x, y);
@@ -113,7 +131,8 @@ function invalidatePreview() {
 }
 
 function syncPoints() {
-    inputs.corners.value = JSON.stringify(points);
+    outline = orderedOutline(points);
+    inputs.corners.value = JSON.stringify(outline || points);
     invalidatePreview();
 }
 
@@ -132,7 +151,13 @@ function clampPoint({ x, y }) {
 function movePoint(index, position) {
     const point = clampPoint(position);
     if (point.x === points[index].x && point.y === points[index].y) return;
-    points[index] = point;
+    const next = [...points];
+    next[index] = point;
+    if (outline && !orderedOutline(next)) {
+        setMessage("Этот угол должен остаться снаружи контура.", true);
+        return;
+    }
+    points = next;
     syncPoints();
 }
 
@@ -215,7 +240,10 @@ async function choosePhoto(restorePoints = false) {
     const file = inputs.facade_file.files[0];
     const selection = inputs.facade.value;
     photo = null;
-    if (!restorePoints) points = [];
+    if (!restorePoints) {
+        points = [];
+        outline = null;
+    }
     invalidatePreview();
 
     const url = file ? URL.createObjectURL(file) : (await facadeCatalog).get(selection);
