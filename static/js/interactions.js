@@ -26,7 +26,6 @@
         if (container.getAttribute("aria-busy") === "true") return;
 
         const feed = form.closest("[data-feed]");
-        const postId = feed?.dataset.post;
         const submitter = event.submitter;
         const commentId = form.closest("[data-comment-id]")?.dataset.commentId;
         const body = new FormData(form);
@@ -38,7 +37,8 @@
 
         container.querySelector(".interaction-error")?.remove();
         container.setAttribute("aria-busy", "true");
-        const buttons = container.querySelectorAll('form button[type="submit"], form button:not([type])');
+        const buttons = Array.from(container.querySelectorAll('form button[type="submit"], form button:not([type])'))
+            .filter((button) => button.closest(".rating-widget, .discussion") === container);
         buttons.forEach((button) => { button.disabled = true; });
 
         try {
@@ -61,7 +61,6 @@
             }
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || "Не удалось сохранить изменения.");
-            if (feed && (!feed.isConnected || feed.dataset.post !== postId)) return;
             if (!container.isConnected) return;
 
             const fragment = document.createElement("template");
@@ -77,6 +76,8 @@
                 updatedDraft.setSelectionRange(draft.selectionStart, draft.selectionEnd);
             }
 
+            const rating = !isRating && container.querySelector(".rating-widget");
+            if (rating) updated.querySelector(".rating-widget")?.replaceWith(rating);
             container.replaceWith(updated);
             if (isRating && submitter) {
                 const selected = Array.from(updated.querySelectorAll('button[name="score"]'))

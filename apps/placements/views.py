@@ -15,7 +15,7 @@ from django.urls import reverse
 from django.utils.cache import add_never_cache_headers
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
-from django.views.decorators.vary import vary_on_cookie, vary_on_headers
+from django.views.decorators.vary import vary_on_cookie
 
 from apps.buildings.addresses import CITY_FILTER, in_city, street_walk_url
 from apps.buildings.models import Building, FacadePhoto
@@ -26,49 +26,34 @@ from .models import Comment, CommentLike, ModerationDecision, Placement, Rating,
 from .services.perspective import encode_image, render_placement
 
 
-def with_comment_likes(project, viewer):
-    comments = project.comments.select_related("author__profile").annotate(like_count=Count("likes")).order_by("-created_at", "-pk")
+def with_comment_likes(comments, viewer):
+    comments = comments.select_related("author__profile").annotate(like_count=Count("likes")).order_by("-created_at", "-pk")
     if viewer.is_authenticated:
         liked = CommentLike.objects.filter(comment_id=OuterRef("pk"), author=viewer)
         comments = comments.annotate(viewer_liked=Exists(liked))
     return comments
 
 
-@vary_on_headers("X-Muralium-Feed")
 def home(request):
     published = published_placements()
-    projects = with_ratings(published, request.user)
     post = request.GET.get("post")
-    if post is None:
-        project = projects.first()
-    else:
+    if post is not None:
         if not post.isascii() or not post.isdecimal() or len(post) > 19 or int(post) >= 2**63:
             raise Http404
-        project = get_object_or_404(projects, pk=post)
+        project = get_object_or_404(published, pk=post)
+        return redirect(f"{reverse('home')}#project-{project.pk}")
 
-    context = {"project": project, "in_feed": True}
-    if project:
-        same_date = Q(published_at=project.published_at)
-        newer = Q(published_at__gt=project.published_at) | (same_date & Q(pk__gt=project.pk))
-        older = Q(published_at__lt=project.published_at) | (same_date & Q(pk__lt=project.pk))
-        ids = published.values_list("pk", flat=True)
-        previous_post = ids.filter(newer).order_by("published_at", "pk").first()
-        next_post = ids.filter(older).first()
-        if previous_post is None and next_post is not None:
-            previous_post = ids.order_by("published_at", "pk").first()
-        if next_post is None and previous_post is not None:
-            next_post = ids.first()
-        context.update(
-            previous_post=previous_post,
-            next_post=next_post,
-            comments=with_comment_likes(project, request.user).order_by("-like_count", "-created_at", "-pk")[:1],
-            comment_draft=take_comment_draft(request, project),
-        )
-
-    if request.headers.get("X-Muralium-Feed") == "1":
-        return render(request, "feed.html", context)
-    context["featured_project"] = published.first() if post is not None else project
-    return render(request, "home.html", context)
+    comments = with_comment_likes(Comment.objects.all(), request.user).order_by("-like_count", "-created_at", "-pk")
+    projects = list(with_ratings(published, request.user).prefetch_related(
+        Prefetch("comments", queryset=comments[:1], to_attr="feed_comments"),
+    ))
+    for project in projects:
+        project.comment_draft = take_comment_draft(request, project)
+    return render(request, "home.html", {
+        "projects": projects,
+        "featured_project": projects[0] if projects else None,
+        "in_feed": True,
+    })
 
 
 def search(request):
@@ -131,7 +116,7 @@ def visible_project(request, pk, *, include_ratings=False):
 def detail(request, pk):
     project = visible_project(request, pk, include_ratings=True)
     published = is_published(project)
-    page = Paginator(with_comment_likes(project, request.user), 20).get_page(
+    page = Paginator(with_comment_likes(project.comments.all(), request.user), 20).get_page(
         request.GET.get("page"),
     ) if published else None
     return render(request, "placement.html", {
@@ -197,7 +182,7 @@ def delete_placement(request, pk):
 
 def discussion_redirect(request, project, section):
     if request.POST.get("source") == "feed":
-        return redirect(f"{reverse('home')}?post={project.pk}#projects")
+        return redirect(f"{reverse('home')}#project-{project.pk}")
     return redirect(f"{reverse('placement', args=[project.pk])}#{section}")
 
 
@@ -218,12 +203,13 @@ def feedback_response(request, project, section, *, new_comment=False):
     else:
         page = None
         if in_feed:
-            comments = with_comment_likes(project, request.user).order_by(
+            project = with_ratings(Placement.objects.filter(pk=project.pk), request.user).get()
+            comments = with_comment_likes(project.comments.all(), request.user).order_by(
                 "-like_count", "-created_at", "-pk",
             )[:1]
         else:
             page_number = "1" if new_comment else request.POST.get("page", "1")
-            page = Paginator(with_comment_likes(project, request.user), 20).get_page(page_number)
+            page = Paginator(with_comment_likes(project.comments.all(), request.user), 20).get_page(page_number)
             comments = page.object_list
         html = render_to_string("discussion.html", {
             "project": project, "in_feed": in_feed, "comments": comments, "page": page,
