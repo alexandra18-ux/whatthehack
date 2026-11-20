@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f6f6ef">
   <title>{% block title %}Muralium — город как холст{% endblock %}</title>
+  <script src="{% static 'js/theme.js' %}"></script>
   <link rel="stylesheet" href="{% static 'css/main.css' %}">
   {% block head %}{% endblock %}
 </head>
@@ -18,11 +19,16 @@
       <a href="{% url 'about' %}"{% if request.resolver_match.url_name == "about" %} aria-current="page"{% endif %}>О проекте</a>
       {% if user.is_authenticated %}<a href="{% url 'mine' %}"{% if request.resolver_match.url_name == "mine" %} aria-current="page"{% endif %}>Личный кабинет</a>{% endif %}
     </nav>
-    {% if user.is_authenticated %}
-      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="button outline compact">Выйти</button></form>
-    {% else %}
-      <a class="button outline compact" href="{% url 'login' %}">Войти</a>
-    {% endif %}
+    <div class="header-actions">
+      <button class="button outline compact theme-toggle" type="button" aria-label="Тёмная тема" aria-pressed="false" title="Тёмная тема" hidden>
+        <span aria-hidden="true"></span>
+      </button>
+      {% if user.is_authenticated %}
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="button outline compact">Выйти</button></form>
+      {% else %}
+        <a class="button outline compact" href="{% url 'login' %}">Войти</a>
+      {% endif %}
+    </div>
   </div>
 </header>
 <main class="container main">
