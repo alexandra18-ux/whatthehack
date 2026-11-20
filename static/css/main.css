@@ -319,6 +319,8 @@ h1, h2, h3 { line-height: 1.06; letter-spacing: -.04em; overflow-wrap: anywhere;
 .comment-form { display: grid; gap: 7px; justify-items: start; margin-top: 14px; }
 .comment-form label { font-size: .9rem; font-weight: 650; }
 .comment-form textarea { resize: vertical; }
+.interaction-error { color: var(--error); font-size: .875rem; margin-top: 8px; }
+.rating-widget[aria-busy="true"], .discussion[aria-busy="true"] { opacity: .85; }
 .feed-sidebar textarea { overscroll-behavior: contain; }
 .project-detail-layout { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(250px, 1fr); gap: 22px; align-items: start; }
 .project-feed-return { margin-top: 16px; }
