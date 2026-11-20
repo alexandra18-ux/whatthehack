@@ -7,5 +7,10 @@
   <div>
     {% if own_profile %}<h1>Личный кабинет</h1><p>{{ profile.nickname|default:profile_user.username }}</p>
     {% else %}<h1>{{ profile.nickname|default:profile_user.username }}</h1>{% endif %}
+    {% if profile_rating.rated_works %}
+    <p class="profile-rating"><span aria-hidden="true">★</span> <strong>{{ profile_rating.average|floatformat:1 }} из 5</strong> · работ с оценками {{ profile_rating.rated_works }}</p>
+    {% else %}
+    <p class="profile-rating">У работ пока нет оценок</p>
+    {% endif %}
   </div>
 </header>

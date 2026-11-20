@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
-from apps.placements.models import Placement, published_placements
+from apps.placements.models import Placement, author_rating, published_placements
 from apps.placements.views import image_response
 
 from .forms import ProfileForm
@@ -48,6 +48,7 @@ def account(request):
     page = Paginator(projects, 12).get_page(request.GET.get("page"))
     return render(request, "mine.html", {
         "profile_user": request.user, "profile": profile, "form": form,
+        "profile_rating": author_rating(request.user),
         "projects": page.object_list, "page": page,
     })
 
@@ -79,6 +80,7 @@ def public_profile(request, pk):
     page = Paginator(published_placements().filter(author=author), 12).get_page(request.GET.get("page"))
     return render(request, "profile.html", {
         "profile_user": author, "profile": getattr(author, "profile", None),
+        "profile_rating": author_rating(author),
         "projects": page.object_list, "page": page,
     })
 

@@ -67,5 +67,13 @@ def published_placements():
     ).select_related("building", "author__profile").order_by("-published_at", "-pk")
 
 
+def author_rating(author):
+    return (
+        published_placements().filter(author=author).order_by()
+        .annotate(work_average=Avg("ratings__score"))
+        .aggregate(average=Avg("work_average"), rated_works=Count("work_average"))
+    )
+
+
 def can_moderate(user):
     return user.is_staff and user.has_perm("placements.moderate_placement")

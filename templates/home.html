@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load static %}
 {% block content %}
 <section class="hero">
   <div class="hero-copy">
@@ -7,7 +7,7 @@
     <p class="hero-description">Примерьте мурал на фасад и покажите, как может измениться ваш город.</p>
     <a class="button lime" href="{% url 'map' %}">Выбрать здание</a>
   </div>
-  {% with project=projects.0 %}
+  {% with project=featured_project %}
   {% if project %}
   <a class="hero-image" href="{% url 'placement' project.pk %}">
     <img src="{% url 'project_image' project.pk 'result' %}" alt="Виртуальный мурал «{{ project.title }}»">
@@ -19,8 +19,10 @@
   {% endwith %}
 </section>
 
-<section id="projects" class="section">
+<section id="projects" class="section" aria-label="Лента граффити">
   <header class="section-heading"><h2>Лента граффити</h2><a class="button outline" href="{% url 'map' %}">Смотреть на карте</a></header>
+  <p id="feed-announcement" class="visually-hidden" role="status"></p>
   {% include "feed.html" %}
 </section>
 {% endblock %}
+{% block scripts %}<script defer src="{% static 'js/feed.js' %}"></script>{% endblock %}

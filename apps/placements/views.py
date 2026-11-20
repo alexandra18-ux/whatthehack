@@ -3,13 +3,14 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Prefetch
+from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.cache import add_never_cache_headers
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
+from django.views.decorators.vary import vary_on_headers
 
 from apps.buildings.addresses import CITY_FILTER, in_city
 from apps.buildings.models import Building, FacadePhoto
@@ -20,12 +21,34 @@ from .models import Comment, Placement, Rating, can_moderate, published_placemen
 from .services.perspective import encode_image, render_placement
 
 
+@vary_on_headers("X-Muralium-Feed")
 def home(request):
-    comments = Comment.objects.select_related("author__profile")[:3]
-    projects = with_ratings(published_placements(), request.user)
-    projects = projects.prefetch_related(Prefetch("comments", queryset=comments, to_attr="recent_comments"))
-    page = Paginator(projects, 8).get_page(request.GET.get("page"))
-    return render(request, "home.html", {"projects": list(page.object_list), "page": page, "in_feed": True})
+    published = published_placements()
+    projects = with_ratings(published, request.user)
+    post = request.GET.get("post")
+    if post is None:
+        project = projects.first()
+    else:
+        if not post.isascii() or not post.isdecimal() or len(post) > 19 or int(post) >= 2**63:
+            raise Http404
+        project = get_object_or_404(projects, pk=post)
+
+    context = {"project": project, "in_feed": True}
+    if project:
+        same_date = Q(published_at=project.published_at)
+        newer = Q(published_at__gt=project.published_at) | (same_date & Q(pk__gt=project.pk))
+        older = Q(published_at__lt=project.published_at) | (same_date & Q(pk__lt=project.pk))
+        ids = published.values_list("pk", flat=True)
+        context.update(
+            previous_post=ids.filter(newer).order_by("published_at", "pk").first(),
+            next_post=ids.filter(older).first(),
+            comments=project.comments.select_related("author__profile")[:20],
+        )
+
+    if request.headers.get("X-Muralium-Feed") == "1":
+        return render(request, "feed.html", context)
+    context["featured_project"] = published.first() if post is not None else project
+    return render(request, "home.html", context)
 
 
 def map_api(request):
@@ -75,9 +98,7 @@ def detail(request, pk):
 
 def discussion_redirect(request, project, section):
     if request.POST.get("source") == "feed":
-        page = request.POST.get("page", "")
-        query = f"?page={page}" if page.isascii() and page.isdecimal() and len(page) <= 9 else ""
-        return redirect(f"{reverse('home')}{query}#project-{project.pk}")
+        return redirect(f"{reverse('home')}?post={project.pk}#projects")
     return redirect(f"{reverse('placement', args=[project.pk])}#{section}")
 
 

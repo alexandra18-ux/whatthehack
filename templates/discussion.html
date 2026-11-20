@@ -1,6 +1,6 @@
 <aside class="discussion" aria-label="Комментарии"{% if not in_feed %} id="comments"{% endif %}>
   <h3>Комментарии</h3>
-  <ul class="comment-list">
+  <ul class="comment-list"{% if in_feed %} tabindex="0" aria-label="Комментарии к работе {{ project.title }}"{% endif %}>
     {% for entry in comments %}
     <li>
       <div class="comment-header">
@@ -19,7 +19,7 @@
   {% if user.is_authenticated %}
   <form class="comment-form" method="post" action="{% url 'comment' project.pk %}">
     {% csrf_token %}
-    {% if in_feed %}<input type="hidden" name="source" value="feed"><input type="hidden" name="page" value="{{ page.number }}">{% endif %}
+    {% if in_feed %}<input type="hidden" name="source" value="feed">{% endif %}
     <label for="comment-{{ project.pk }}">Написать комментарий</label>
     <textarea id="comment-{{ project.pk }}" name="text" rows="2" maxlength="800" required></textarea>
     <button class="button outline compact">Отправить</button>

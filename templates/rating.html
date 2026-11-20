@@ -7,7 +7,7 @@
   {% if project.viewer_score %}<p class="rating-mine">Ваша оценка: {{ project.viewer_score }} из 5</p>{% endif %}
   <form method="post" action="{% url 'rate' project.pk %}" class="rating-form" aria-label="Оценить от 1 до 5">
     {% csrf_token %}
-    {% if in_feed %}<input type="hidden" name="source" value="feed"><input type="hidden" name="page" value="{{ page.number }}">{% endif %}
+    {% if in_feed %}<input type="hidden" name="source" value="feed">{% endif %}
     {% for score in "12345" %}
     <button type="submit" name="score" value="{{ score }}" aria-label="Оценить на {{ score }} из 5"
             {% if project.viewer_score|stringformat:"s" == score %}class="is-rated" aria-pressed="true"{% endif %}><span aria-hidden="true">★</span></button>

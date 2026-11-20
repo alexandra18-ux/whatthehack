@@ -130,6 +130,66 @@ class PlacementWorkflowTests(TestCase):
         self.assertContains(feed, "Хорошая работа!")
         self.assertContains(feed, "5,0 из 5")
 
+    def test_feed_switches_one_work_and_its_discussion_together(self):
+        published_at = timezone.now()
+        older = self.create_work("Первая работа", published_at)
+        latest = self.create_work("Вторая работа", published_at)
+        pending = self.create_work("Скрытая работа")
+        Comment.objects.create(placement=older, author=self.owner, text="Комментарий первой работы")
+        Comment.objects.create(placement=latest, author=self.owner, text="Комментарий второй работы")
+        url = reverse("home")
+
+        response = self.client.get(url)
+        self.assertContains(response, "Вторая работа")
+        self.assertContains(response, "Комментарий второй работы")
+        self.assertNotContains(response, "Первая работа")
+        self.assertNotContains(response, "Комментарий первой работы")
+        self.assertEqual(response.context["next_post"], older.pk)
+        self.assertIsNone(response.context["previous_post"])
+
+        response = self.client.get(url, {"post": older.pk}, headers={"X-Muralium-Feed": "1"})
+        self.assertTemplateUsed(response, "feed.html")
+        self.assertContains(response, "Первая работа")
+        self.assertContains(response, "Комментарий первой работы")
+        self.assertNotContains(response, "Вторая работа")
+        self.assertContains(response, reverse("profile", args=[self.owner.pk]))
+        self.assertEqual(response.context["previous_post"], latest.pk)
+        self.assertIsNone(response.context["next_post"])
+        self.assertEqual(self.client.get(url, {"post": pending.pk}).status_code, 404)
+
+        response = self.client.post(reverse("comment", args=[older.pk]), {
+            "source": "feed", "text": "Новый комментарий",
+        })
+        self.assertRedirects(response, f"{url}?post={older.pk}#projects")
+
+    def test_author_rating_weights_each_rated_public_work_equally(self):
+        published_at = timezone.now()
+        first = self.create_work("Первая оценённая работа", published_at)
+        second = self.create_work("Вторая оценённая работа", published_at)
+        self.create_work("Без оценок", published_at)
+        pending = self.create_work("Скрытая работа")
+        another = get_user_model().objects.create_user(username="another")
+        Rating.objects.bulk_create([
+            Rating(placement=first, author=self.owner, score=5),
+            Rating(placement=first, author=another, score=3),
+            Rating(placement=second, author=another, score=2),
+            Rating(placement=pending, author=another, score=5),
+        ])
+        for url in (reverse("mine"), reverse("profile", args=[self.owner.pk])):
+            response = self.client.get(url)
+            self.assertEqual(response.context["profile_rating"], {"average": 3, "rated_works": 2})
+            self.assertContains(response, "3,0 из 5")
+
+    def create_work(self, title, published_at=None):
+        response = self.client.post(reverse("create"), {**self.payload(), "title": title})
+        self.assertEqual(response.status_code, 302)
+        project = Placement.objects.get(title=title)
+        if published_at:
+            project.status = Placement.Status.APPROVED
+            project.published_at = published_at
+            project.save(update_fields=["status", "published_at"])
+        return project
+
     def test_profile_avatar_and_private_wall_do_not_publish_pending_projects(self):
         self.client.post(reverse("create"), self.payload())
         project = Placement.objects.get()
