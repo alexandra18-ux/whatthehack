@@ -143,6 +143,24 @@ class PlacementWorkflowTests(TestCase):
         self.assertEqual(visitor.get(reverse("map_api")).json()["projects"][0]["id"], project.pk)
         self.assertContains(visitor.get(reverse("home")), project.title)
 
+    def test_search_matches_cyrillic_and_only_shows_published_cards(self):
+        self.client.post(reverse("create"), self.payload())
+        project = Placement.objects.get()
+        visitor = Client()
+        url = reverse("search")
+        self.assertContains(visitor.get(url, {"q": "мурал фасад"}), "ничего не найдено")
+
+        project.status = Placement.Status.APPROVED
+        project.published_at = timezone.now()
+        project.save(update_fields=["status", "published_at"])
+        Comment.objects.create(placement=project, author=self.owner, text="Отличная работа")
+        response = visitor.get(url, {"q": "мурал фасад"})
+        self.assertContains(response, f'id="result-title-{project.pk}"')
+        self.assertContains(response, "Отличная работа")
+        self.assertNotContains(response, "data-feed-direction")
+        self.assertNotContains(response, 'src="/static/js/feed.js"')
+        self.assertContains(visitor.get(url, {"q": ".*"}), "ничего не найдено")
+
     def test_published_projects_accept_one_editable_rating_and_comments(self):
         self.client.post(reverse("create"), self.payload())
         project = Placement.objects.get()

@@ -1,4 +1,4 @@
-<aside class="discussion" aria-label="Комментарии"{% if not in_feed %} id="comments"{% endif %}>
+<aside class="discussion" aria-label="Комментарии"{% if not in_feed and not in_search %} id="comments"{% endif %}>
   <h3>Комментарии</h3>
   <ul class="comment-list"{% if in_feed %} tabindex="0" aria-label="Комментарии к работе {{ project.title }}"{% endif %}>
     {% for entry in comments %}

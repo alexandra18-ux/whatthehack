@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Поиск проектов · Muralium{% endblock %}
+{% block content %}
+<section class="section">
+  <header class="section-heading"><h1>Поиск проектов</h1></header>
+  {% if search_query %}
+  <div class="search-results">
+    {% for project in page %}
+      {% include "feed_card.html" with in_search=True comments=project.search_comments %}
+    {% empty %}
+      <p class="empty">По запросу «{{ search_query }}» ничего не найдено.</p>
+    {% endfor %}
+  </div>
+  {% include "pagination.html" %}
+  {% else %}
+  <p class="empty">Введите название проекта, адрес или имя автора.</p>
+  {% endif %}
+</section>
+{% endblock %}
