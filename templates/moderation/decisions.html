@@ -1,15 +1,17 @@
-<ul class="comment-list">
+<ul class="moderation-list">
   {% for decision in decisions %}
-  <li class="panel">
-    <div class="comment-header">
-      <a href="{% url 'moderation_review' decision.placement_id %}">{{ decision.placement.title }}</a>
+  <li class="moderation-card">
+    <div class="moderation-card-heading">
+      <h3><a href="{% url 'moderation_review' decision.placement_id %}">{{ decision.placement.title }}</a></h3>
       <time datetime="{{ decision.created_at|date:'c' }}">{{ decision.created_at|date:"j E Y, H:i" }}</time>
     </div>
-    <p><strong>{{ decision.get_status_display }}</strong> · {{ decision.moderator_username }}</p>
-    {% if decision.rejection_reason %}<p>{{ decision.rejection_reason|linebreaksbr }}</p>{% endif %}
-    {% if decision.revision_notes %}<p>{{ decision.revision_notes|linebreaksbr }}</p>{% endif %}
+    {% include "moderation/person.html" with person=decision.placement.author role_label="Автор публикации" only %}
+    {% include "moderation/person.html" with person=decision.moderator fallback=decision.moderator_username role_label="Модератор" only %}
+    <p class="moderation-status">Статус: <strong>{{ decision.get_status_display }}</strong></p>
+    {% if decision.rejection_reason %}<p class="moderation-note"><strong>Причина отказа</strong><br>{{ decision.rejection_reason|linebreaksbr }}</p>{% endif %}
+    {% if decision.revision_notes %}<p class="moderation-note"><strong>Что нужно доработать</strong><br>{{ decision.revision_notes|linebreaksbr }}</p>{% endif %}
   </li>
   {% empty %}
-  <li>В журнале пока нет решений.</li>
+  <li class="moderation-empty">В журнале пока нет решений.</li>
   {% endfor %}
 </ul>

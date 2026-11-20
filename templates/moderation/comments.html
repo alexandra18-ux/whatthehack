@@ -1,12 +1,8 @@
-{% extends "base.html" %}
+{% extends "moderation/base.html" %}
 {% block title %}Комментарии · Модерация · Muralium{% endblock %}
-{% block content %}
-<a class="back-link" href="{% url 'moderation_queue' %}">← К заявкам</a>
-<header class="page-heading">
-  <h1>Модерация комментариев</h1>
-  <a class="button outline" href="{% url 'moderation_accounts' %}">Все пользователи</a>
-</header>
-<form class="panel editor-panel field-stack" method="get">
+{% block moderation_content %}
+<header class="moderation-heading"><h1>Модерация комментариев</h1></header>
+<form class="moderation-card moderation-filters editor-panel" method="get">
   <label for="comment-query">Комментарий, название работы или логин</label>
   <input id="comment-query" name="q" value="{{ query }}" maxlength="200" type="search">
   <button class="button lime" type="submit">Найти</button>
@@ -15,10 +11,10 @@
 {% if accounts %}
 <section class="section" aria-labelledby="account-search">
   <header class="section-heading"><h2 id="account-search">Найденные аккаунты</h2></header>
-  <ul class="comment-list">
+  <ul class="moderation-list">
     {% for account in accounts %}
-    <li>
-      {{ account.username }}
+    <li class="moderation-card">
+      {% include "moderation/person.html" with person=account only %}
       {% if account.restrictions.ban_active %} · Аккаунт заблокирован{% endif %}
       {% if account.restrictions.comments_block_active %} · Комментарии запрещены{% endif %}
       {% if account.restrictions.publications_block_active %} · Отправка работ запрещена{% endif %}
@@ -34,14 +30,17 @@
 {% endif %}
 <section class="section" aria-labelledby="moderation-comments">
   <header class="section-heading"><h2 id="moderation-comments">Комментарии</h2></header>
-  <ul class="comment-list">
+  <ul class="moderation-list">
     {% for entry in page %}
-    <li class="panel">
-      <div class="comment-header">
-        <span>{{ entry.author.username }} · <a href="{% url 'placement' entry.placement_id %}#comments">{{ entry.placement.title }}</a></span>
+    <li class="moderation-card">
+      <div class="moderation-card-heading">
+        <h3><a href="{% url 'placement' entry.placement_id %}#comments">{{ entry.placement.title }}</a></h3>
         <time datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:"j E Y, H:i" }}</time>
       </div>
-      <p>{{ entry.text|linebreaksbr }}</p>
+      {% include "moderation/person.html" with person=entry.placement.author role_label="Автор публикации" only %}
+      {% include "moderation/person.html" with person=entry.author role_label="Автор комментария" only %}
+      <p class="moderation-status">Статус: <strong>{% if entry.placement.status == "approved" and entry.placement.published_at %}Комментарий опубликован{% else %}Публикация скрыта{% endif %}</strong></p>
+      <p class="moderation-note">{{ entry.text|linebreaksbr }}</p>
       <div class="address-actions">
         <form method="post" action="{% url 'moderation_delete_comment' entry.pk %}">
           {% csrf_token %}

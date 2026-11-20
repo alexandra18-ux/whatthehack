@@ -1,26 +1,45 @@
-{% extends "base.html" %}
+{% extends "moderation/base.html" %}
 {% block title %}Пользователи · Модерация · Muralium{% endblock %}
-{% block content %}
-<a class="back-link" href="{% url 'moderation_queue' %}">← К модерации</a>
-<header class="page-heading"><h1>Пользователи</h1></header>
+{% block moderation_content %}
+<header class="moderation-heading"><h1>Пользователи</h1></header>
 {% url 'moderation_accounts' as directory %}
-<nav class="address-actions" aria-label="Фильтр пользователей">
-  <a class="button outline" href="{{ directory }}{% querystring status=None page=None %}"{% if not restricted_only %} aria-current="page"{% endif %}>Все пользователи</a>
-  <a class="button outline" href="{{ directory }}{% querystring status='restricted' page=None %}"{% if restricted_only %} aria-current="page"{% endif %}>С активными ограничениями</a>
-</nav>
-<form class="panel field-stack" method="get">
+<div class="moderation-account-filters">
+  <nav class="moderation-nav" aria-label="Роль аккаунта">
+    <a href="{{ directory }}{% querystring role=None page=None %}"{% if not role %} aria-current="page"{% endif %}>Все роли</a>
+    <a href="{{ directory }}{% querystring role='admin' page=None %}"{% if role == "admin" %} aria-current="page"{% endif %}>Администраторы</a>
+    <a href="{{ directory }}{% querystring role='user' page=None %}"{% if role == "user" %} aria-current="page"{% endif %}>Пользователи</a>
+  </nav>
+  <nav class="moderation-nav" aria-label="Ограничения аккаунта">
+    <a href="{{ directory }}{% querystring status=None page=None %}"{% if not restricted_only %} aria-current="page"{% endif %}>Все статусы</a>
+    <a href="{{ directory }}{% querystring status='restricted' page=None %}"{% if restricted_only %} aria-current="page"{% endif %}>С активными ограничениями</a>
+  </nav>
+</div>
+<form class="moderation-card moderation-filters editor-panel" method="get">
   <label for="account-query">Логин или ник</label>
   <input id="account-query" name="q" value="{{ query }}" maxlength="200" type="search">
   {% if restricted_only %}<input type="hidden" name="status" value="restricted">{% endif %}
+  {% if role %}<input type="hidden" name="role" value="{{ role }}">{% endif %}
   <button class="button lime" type="submit">Найти</button>
 </form>
-<ul class="comment-list">
+<ul class="moderation-list">
   {% for account in page %}
-  <li class="panel">
-    {% if account.is_active %}<a href="{% url 'profile' account.pk %}">{{ account.profile.nickname|default:account.username }}</a>
-    {% else %}<strong>{{ account.profile.nickname|default:account.username }}</strong>{% endif %}
-    {% if account.profile.nickname %}<p>{{ account.username }}</p>{% endif %}
+  <li class="moderation-card">
+    <div class="moderation-card-heading">
+      {% if account.is_active %}
+        {% url 'profile' account.pk as account_url %}
+        {% include "moderation/person.html" with person=account profile_url=account_url only %}
+      {% else %}
+        {% include "moderation/person.html" with person=account only %}
+      {% endif %}
+      <span class="moderation-status">{% if account.is_staff or account.is_superuser %}Администратор{% else %}Пользователь{% endif %}</span>
+    </div>
+    {% if account.profile.nickname %}<p class="moderation-muted">@{{ account.username }}</p>{% endif %}
     {% with limits=account.restrictions %}
+    {% if limits.ban_active or limits.comments_block_active or limits.publications_block_active %}
+    <p class="moderation-status">Статус: <strong>Есть ограничения</strong></p>
+    {% else %}
+    <p class="moderation-status">Статус: <strong>Без ограничений</strong></p>
+    {% endif %}
     {% if limits.ban_active %}<p>Блокировка аккаунта · {% if limits.banned_until %}до {{ limits.banned_until|date:"j E Y, H:i" }}{% else %}бессрочно{% endif %}</p>{% endif %}
     {% if limits.comments_block_active %}<p>Запрет комментариев · {% if limits.comments_blocked_until %}до {{ limits.comments_blocked_until|date:"j E Y, H:i" }}{% else %}бессрочно{% endif %}</p>{% endif %}
     {% if limits.publications_block_active %}<p>Запрет отправки работ · {% if limits.publications_blocked_until %}до {{ limits.publications_blocked_until|date:"j E Y, H:i" }}{% else %}бессрочно{% endif %}</p>{% endif %}

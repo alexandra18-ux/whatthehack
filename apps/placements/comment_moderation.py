@@ -69,13 +69,13 @@ class RestrictionForm(forms.Form):
 @require_safe
 def comment_list(request):
     query = request.GET.get("q", "").strip()[:200]
-    comments = Comment.objects.select_related("placement", "author__profile")
+    comments = Comment.objects.select_related("placement__author__profile", "author__profile")
     accounts = ()
     if query:
         comments = comments.filter(
             Q(text__icontains=query) | Q(author__username__icontains=query) | Q(placement__title__icontains=query)
         )
-        accounts = get_user_model().objects.filter(username__icontains=query).select_related("restrictions").order_by("username")[:20]
+        accounts = get_user_model().objects.filter(username__icontains=query).select_related("profile", "restrictions").order_by("username")[:20]
     page = Paginator(comments, 25).get_page(request.GET.get("page"))
     return render(request, "moderation/comments.html", {"page": page, "query": query, "accounts": accounts})
 
@@ -141,7 +141,15 @@ def restrict_account(request, pk):
 def account_list(request):
     query = request.GET.get("q", "").strip()[:200]
     restricted_only = request.GET.get("status") == "restricted"
+    role = request.GET.get("role")
     accounts = get_user_model().objects.select_related("profile", "restrictions").order_by("username", "pk")
+    administrator = Q(is_staff=True) | Q(is_superuser=True)
+    if role == "admin":
+        accounts = accounts.filter(administrator)
+    elif role == "user":
+        accounts = accounts.exclude(administrator)
+    else:
+        role = ""
     if query:
         accounts = accounts.filter(Q(username__icontains=query) | Q(profile__nickname__icontains=query))
     if restricted_only:
@@ -156,5 +164,5 @@ def account_list(request):
     for account in page:
         account.can_manage_restrictions = can_manage_restrictions(request.user, account)
     return render(request, "moderation/accounts.html", {
-        "page": page, "query": query, "restricted_only": restricted_only,
+        "page": page, "query": query, "restricted_only": restricted_only, "role": role,
     })

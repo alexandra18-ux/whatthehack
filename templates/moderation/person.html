@@ -1,0 +1,9 @@
+{% firstof person.profile.nickname person.username fallback "Неизвестен" as name %}
+{% if profile_url %}<a class="moderation-person" href="{{ profile_url }}">{% else %}<span class="moderation-person">{% endif %}
+  {% if person.profile.avatar and person.is_active %}
+  <img src="{% url 'avatar' person.pk %}" alt="" width="30" height="30" loading="lazy">
+  {% else %}
+  <span class="moderation-avatar-placeholder" aria-hidden="true">{{ name|default:"?"|first|upper }}</span>
+  {% endif %}
+  <span>{% if role_label %}<span class="moderation-role">{{ role_label }}</span> {% endif %}<strong>{{ name|default:"Неизвестен" }}</strong></span>
+{% if profile_url %}</a>{% else %}</span>{% endif %}

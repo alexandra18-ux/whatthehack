@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% load static %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/moderation.css' %}">{% endblock %}
+{% block content %}
+<div class="moderation-shell">
+  <nav class="moderation-nav" aria-label="Разделы модерации">
+    {% with route=request.resolver_match.url_name %}
+    <a href="{% url 'moderation_queue' %}"{% if route == "moderation_queue" or route == "moderation_review" %} aria-current="page"{% endif %}>Заявки</a>
+    <a href="{% url 'moderation_history' %}"{% if route == "moderation_history" %} aria-current="page"{% endif %}>История модерации</a>
+    <a href="{% url 'moderation_comments' %}"{% if route == "moderation_comments" %} aria-current="page"{% endif %}>Комментарии</a>
+    <a href="{% url 'moderation_accounts' %}"{% if route == "moderation_accounts" or route == "moderation_restrict_account" %} aria-current="page"{% endif %}>Пользователи</a>
+    {% endwith %}
+  </nav>
+  {% block moderation_content %}{% endblock %}
+</div>
+{% endblock %}

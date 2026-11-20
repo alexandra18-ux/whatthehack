@@ -1,25 +1,43 @@
-{% extends "base.html" %}
+{% extends "moderation/base.html" %}
 {% block title %}Модерация · Muralium{% endblock %}
-{% block content %}
-<header class="page-heading">
-  <h1>Модерация</h1>
-  <p>Заявки на рассмотрении: {{ page.paginator.count }}</p>
-  <nav class="address-actions" aria-label="Разделы модерации">
-    <a class="button outline" href="{% url 'moderation_history' %}">История модерации</a>
-    <a class="button outline" href="{% url 'moderation_comments' %}">Комментарии</a>
-    <a class="button outline" href="{% url 'moderation_accounts' %}">Пользователи</a>
-  </nav>
-</header>
-<div class="project-grid">
-  {% for project in page %}
-  <article class="panel">
-    <h2><a href="{% url 'moderation_review' project.pk %}">{{ project.title }}</a></h2>
-    <p>{{ project.building.address }}</p>
-    <p>{{ project.author.profile.nickname|default:project.author.username }} · {{ project.created_at|date:"j E Y, H:i" }}</p>
-  </article>
-  {% empty %}
-  <p>Новых заявок пока нет.</p>
-  {% endfor %}
+{% block moderation_content %}
+<header class="moderation-heading"><h1>Модерация</h1></header>
+<div class="moderation-dashboard">
+  <section aria-labelledby="queue-title">
+    <div class="moderation-section-heading">
+      <h2 id="queue-title">Очередь заявок</h2>
+      <span>{{ page.paginator.count }} на рассмотрении</span>
+    </div>
+    <ul class="moderation-list">
+      {% for project in page %}
+      <li class="moderation-card moderation-queue-card">
+        <a class="moderation-thumbnail" href="{% url 'moderation_review' project.pk %}" aria-label="Открыть «{{ project.title }}»">
+          {% if project.result_image %}<img src="{% url 'project_image' project.pk 'result' %}" alt="" width="152" height="100" loading="lazy">{% endif %}
+        </a>
+        <div class="moderation-queue-copy">
+          <div class="moderation-card-heading">
+            <h3><a href="{% url 'moderation_review' project.pk %}">{{ project.title }}</a></h3>
+            <time datetime="{{ project.created_at|date:'c' }}">{{ project.created_at|date:"j E Y, H:i" }}</time>
+          </div>
+          <p class="moderation-muted">{{ project.building.address }}</p>
+          {% include "moderation/person.html" with person=project.author role_label="Автор публикации" only %}
+          <p class="moderation-status">Статус: <strong>{{ project.get_status_display }}</strong></p>
+        </div>
+      </li>
+      {% empty %}
+      <li class="moderation-empty">Новых заявок пока нет.</li>
+      {% endfor %}
+    </ul>
+    {% include "pagination.html" %}
+  </section>
+  <aside class="moderation-card moderation-overview" aria-labelledby="overview-title">
+    <h2 id="overview-title">Сводка по заявкам</h2>
+    <dl>
+      {% for label, count in status_counts %}
+      <div><dt>{{ label }}</dt><dd>{{ count }}</dd></div>
+      {% endfor %}
+    </dl>
+    <a class="button outline compact" href="{% url 'moderation_history' %}">Открыть историю</a>
+  </aside>
 </div>
-{% include "pagination.html" %}
 {% endblock %}

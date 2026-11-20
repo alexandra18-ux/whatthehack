@@ -1,10 +1,13 @@
-{% extends "base.html" %}
+{% extends "moderation/base.html" %}
 {% block title %}{{ project.title }} · Модерация{% endblock %}
-{% block content %}
+{% block moderation_content %}
 <a class="back-link" href="{% url 'moderation_queue' %}">← Вернуться к очереди</a>
-<header class="page-heading">
+<header class="moderation-heading">
   <h1>{{ project.title }}</h1>
-  <p>{{ project.building.address }} · <a href="{% url 'profile' project.author_id %}">{{ project.author.profile.nickname|default:project.author.username }}</a></p>
+  <p class="moderation-muted">{{ project.building.address }}</p>
+  {% url 'profile' project.author_id as author_url %}
+  {% include "moderation/person.html" with person=project.author profile_url=author_url role_label="Автор публикации" only %}
+  <p class="moderation-status">Статус: <strong>{{ project.get_status_display }}</strong></p>
 </header>
 <div class="project-detail-layout">
   <div>
@@ -18,7 +21,7 @@
     </div>
     <div class="project-description">{{ project.description|linebreaks }}</div>
   </div>
-  <section class="panel editor-panel">
+  <section class="moderation-card editor-panel">
     {% if can_decide %}
     <h2>Решение по заявке</h2>
     <form method="post" class="field-stack">
@@ -36,7 +39,7 @@
     {% endif %}
   </section>
 </div>
-<section class="section" aria-labelledby="review-history">
+<section class="moderation-review-history" aria-labelledby="review-history">
   <header class="section-heading"><h2 id="review-history">История заявки</h2></header>
   {% include "moderation/decisions.html" %}
 </section>

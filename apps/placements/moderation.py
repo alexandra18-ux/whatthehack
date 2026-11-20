@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -99,7 +100,9 @@ def queue(request):
         "building", "author__profile",
     ).order_by("created_at", "pk")
     page = Paginator(projects, 20).get_page(request.GET.get("page"))
-    return render(request, "moderation/queue.html", {"page": page})
+    counts = dict(Placement.objects.order_by().values_list("status").annotate(total=Count("pk")))
+    status_counts = [(label, counts.get(status, 0)) for status, label in Placement.Status.choices]
+    return render(request, "moderation/queue.html", {"page": page, "status_counts": status_counts})
 
 
 @never_cache
@@ -109,11 +112,11 @@ def queue(request):
 def history(request):
     show_deletions = request.GET.get("kind") == "comments"
     if show_deletions:
-        entries = CommentDeletion.objects.all()
+        entries = CommentDeletion.objects.select_related("placement__author__profile")
         filters = CommentHistoryFilterForm(request.GET)
         lookups = {"title": "placement_title__icontains", "author": "author_username__icontains"}
     else:
-        entries = ModerationDecision.objects.select_related("placement")
+        entries = ModerationDecision.objects.select_related("placement__author__profile", "moderator__profile")
         filters = DecisionHistoryFilterForm(request.GET)
         lookups = {"title": "placement__title__icontains", "status": "status"}
 
@@ -162,6 +165,6 @@ def review(request, pk):
     return render(request, "moderation/review.html", {
         "project": project,
         "form": form,
-        "decisions": project.moderation_decisions.all(),
+        "decisions": project.moderation_decisions.select_related("placement__author__profile", "moderator__profile"),
         "can_decide": request.method == "POST" or project.status == Placement.Status.PENDING,
     })

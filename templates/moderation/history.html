@@ -1,32 +1,38 @@
-{% extends "base.html" %}
+{% extends "moderation/base.html" %}
 {% block title %}История модерации · Muralium{% endblock %}
-{% block content %}
-<a class="back-link" href="{% url 'moderation_queue' %}">← Вернуться к очереди</a>
-<header class="page-heading"><h1>История модерации</h1></header>
+{% block moderation_content %}
+<header class="moderation-heading"><h1>История модерации</h1></header>
 {% url 'moderation_history' as history_url %}
 <nav class="address-actions" aria-label="Тип истории">
   <a class="button outline" href="{{ history_url }}"{% if not show_deletions %} aria-current="page"{% endif %}>Решения по заявкам</a>
   <a class="button outline" href="{{ history_url }}?kind=comments"{% if show_deletions %} aria-current="page"{% endif %}>Удалённые комментарии</a>
 </nav>
-<form class="panel editor-panel field-stack" method="get">
+<form class="moderation-card moderation-filters editor-panel" method="get">
   {% if show_deletions %}<input type="hidden" name="kind" value="comments">{% endif %}
-  {{ filters.as_p }}
-  <button class="button lime" type="submit">Найти</button>
-  <a class="button outline" href="{{ history_url }}{% if show_deletions %}?kind=comments{% endif %}">Сбросить</a>
+  <div class="moderation-filter-grid">
+    {% for field in filters %}<div>{{ field.as_field_group }}</div>{% endfor %}
+  </div>
+  <div class="address-actions">
+    <button class="button lime compact" type="submit">Найти</button>
+    <a class="button outline compact" href="{{ history_url }}{% if show_deletions %}?kind=comments{% endif %}">Сбросить</a>
+  </div>
 </form>
 {% if show_deletions %}
-<ul class="comment-list">
+<ul class="moderation-list">
   {% for entry in page %}
-  <li class="panel">
-    <div class="comment-header">
-      {% if entry.placement_id %}<a href="{% url 'moderation_review' entry.placement_id %}">{{ entry.placement_title }}</a>{% else %}<strong>{{ entry.placement_title }}</strong>{% endif %}
+  <li class="moderation-card">
+    <div class="moderation-card-heading">
+      <h3>{% if entry.placement_id %}<a href="{% url 'moderation_review' entry.placement_id %}">{{ entry.placement_title }}</a>{% else %}{{ entry.placement_title }}{% endif %}</h3>
       <time datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:"j E Y, H:i" }}</time>
     </div>
-    <p>Автор: {{ entry.author_username }} · Удалил: {{ entry.moderator_username }}</p>
-    <p>{{ entry.text|linebreaksbr }}</p>
+    {% if entry.placement_id %}{% include "moderation/person.html" with person=entry.placement.author role_label="Автор публикации" only %}{% endif %}
+    {% include "moderation/person.html" with fallback=entry.author_username role_label="Автор комментария" only %}
+    {% include "moderation/person.html" with fallback=entry.moderator_username role_label="Модератор" only %}
+    <p class="moderation-status">Статус: <strong>Комментарий удалён</strong></p>
+    <p class="moderation-note">{{ entry.text|linebreaksbr }}</p>
   </li>
   {% empty %}
-  <li>Записей об удалении не найдено.</li>
+  <li class="moderation-empty">Записей об удалении не найдено.</li>
   {% endfor %}
 </ul>
 {% else %}
