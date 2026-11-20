@@ -9,6 +9,9 @@ class Profile(models.Model):
     )
     nickname = models.CharField("Ник", max_length=40, blank=True)
     avatar = models.ImageField("Аватар", upload_to="avatars/", blank=True)
+    verified_email = models.EmailField(max_length=254, unique=True, null=True, blank=True)
+    pending_email = models.EmailField(max_length=254, blank=True)
+    email_verification_nonce = models.CharField(max_length=64, blank=True)
 
     def __str__(self):
         return self.nickname or self.user.get_username()
