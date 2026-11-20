@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load static %}
+{% extends "base.html" %}
 {% block content %}
 <section class="hero">
   <div class="hero-copy">
@@ -21,8 +21,6 @@
 
 <section id="projects" class="section" aria-label="Лента граффити">
   <header class="section-heading"><h2>Лента граффити</h2><a class="button outline" href="{% url 'map' %}">Смотреть на карте</a></header>
-  <p id="feed-announcement" class="visually-hidden" role="status"></p>
   {% include "feed.html" %}
 </section>
 {% endblock %}
-{% block scripts %}<script defer src="{% static 'js/feed.js' %}"></script>{% endblock %}

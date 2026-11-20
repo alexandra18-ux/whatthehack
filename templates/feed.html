@@ -1,47 +1,34 @@
-<div class="graffiti-feed" data-feed data-post="{% if project %}{{ project.pk }}{% endif %}">
-{% if project %}
-  <p class="feed-instructions">Перелистывайте работы свайпом, тачпадом или стрелками.</p>
-  <div class="feed-viewport">
-    <article class="feed-post" data-feed-swipe id="project-{{ project.pk }}" aria-labelledby="feed-title">
-      <div class="feed-main">
-        <header class="feed-byline">
-          <a class="feed-author" href="{% url 'profile' project.author_id %}">
-            {% if project.author.profile.avatar %}
-            <img src="{% url 'avatar' project.author_id %}" alt="">
-            {% else %}
-            <span class="avatar-placeholder" aria-hidden="true">{{ project.author.profile.nickname|default:project.author.username|first|upper }}</span>
-            {% endif %}
-            {{ project.author.profile.nickname|default:project.author.username }}
-          </a>
-          <time datetime="{{ project.published_at|date:'c' }}">{{ project.published_at|date:"j E Y" }}</time>
-        </header>
-        <div class="feed-caption">
-          <div class="feed-title-group">
-            <p class="card-location">{{ project.building.address }}</p>
-            <h3 id="feed-title" tabindex="-1"><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
-          </div>
-          <a class="button outline compact feed-details" href="{% url 'placement' project.pk %}">О работе</a>
+<div class="graffiti-feed" data-feed>
+{% for project in projects %}
+  <article class="feed-post" id="project-{{ project.pk }}" aria-labelledby="feed-title-{{ project.pk }}">
+    <div class="feed-main">
+      <header class="feed-byline">
+        <a class="feed-author" href="{% url 'profile' project.author_id %}">
+          {% if project.author.profile.avatar %}
+          <img loading="lazy" src="{% url 'avatar' project.author_id %}" alt="">
+          {% else %}
+          <span class="avatar-placeholder" aria-hidden="true">{{ project.author.profile.nickname|default:project.author.username|first|upper }}</span>
+          {% endif %}
+          {{ project.author.profile.nickname|default:project.author.username }}
+        </a>
+        <time datetime="{{ project.published_at|date:'c' }}">{{ project.published_at|date:"j E Y" }}</time>
+      </header>
+      <div class="feed-caption">
+        <div class="feed-title-group">
+          <p class="card-location">{{ project.building.address }}</p>
+          <h3 id="feed-title-{{ project.pk }}"><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
         </div>
-        {% if previous_post %}
-        <a class="button outline feed-arrow" data-feed-direction="previous" href="{% url 'home' %}?post={{ previous_post }}#projects" aria-label="Предыдущее граффити">↑</a>
-        {% else %}
-        <button class="button outline feed-arrow" type="button" disabled aria-label="Предыдущего граффити нет">↑</button>
-        {% endif %}
-        <div class="feed-cover" data-swipe-area>
-          <a href="{% url 'placement' project.pk %}" draggable="false"><img src="{% url 'project_image' project.pk 'result' %}" alt="{{ project.title }}" draggable="false"></a>
-        </div>
-        {% if next_post %}
-        <a class="button outline feed-arrow" data-feed-direction="next" href="{% url 'home' %}?post={{ next_post }}#projects" aria-label="Следующее граффити">↓</a>
-        {% else %}
-        <button class="button outline feed-arrow" type="button" disabled aria-label="Следующего граффити нет">↓</button>
-        {% endif %}
+        <a class="button outline compact feed-details" href="{% url 'placement' project.pk %}">О работе</a>
       </div>
-      <div class="feed-sidebar">
-        {% include "discussion.html" %}
+      <div class="feed-cover">
+        <a href="{% url 'placement' project.pk %}"><img loading="lazy" src="{% url 'project_image' project.pk 'result' %}" alt="{{ project.title }}"></a>
       </div>
-    </article>
-  </div>
-{% else %}
+    </div>
+    <div class="feed-sidebar">
+      {% include "discussion.html" with comments=project.feed_comments comment_draft=project.comment_draft %}
+    </div>
+  </article>
+{% empty %}
 <p class="empty">Здесь пока нет граффити. Выберите здание, чтобы создать первый проект.</p>
-{% endif %}
+{% endfor %}
 </div>

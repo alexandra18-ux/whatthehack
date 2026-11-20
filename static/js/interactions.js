@@ -26,7 +26,6 @@
         if (container.getAttribute("aria-busy") === "true") return;
 
         const feed = form.closest("[data-feed]");
-        const postId = feed?.dataset.post;
         const submitter = event.submitter;
         const commentId = form.closest("[data-comment-id]")?.dataset.commentId;
         const body = new FormData(form);
@@ -62,7 +61,6 @@
             }
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || "Не удалось сохранить изменения.");
-            if (feed && (!feed.isConnected || feed.dataset.post !== postId)) return;
             if (!container.isConnected) return;
 
             const fragment = document.createElement("template");

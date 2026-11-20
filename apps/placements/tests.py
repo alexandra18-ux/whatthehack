@@ -592,7 +592,7 @@ class PlacementWorkflowTests(TestCase):
         self.assertContains(feed, "Хорошая работа!")
         self.assertContains(feed, "5,0 из 5")
 
-    def test_feed_switches_one_work_and_its_discussion_together(self):
+    def test_feed_lists_published_works_with_their_discussions(self):
         published_at = timezone.now()
         older = self.create_work("Первая работа", published_at)
         latest = self.create_work("Вторая работа", published_at)
@@ -604,27 +604,22 @@ class PlacementWorkflowTests(TestCase):
         response = self.client.get(url)
         self.assertContains(response, "Вторая работа")
         self.assertContains(response, "Комментарий второй работы")
-        self.assertNotContains(response, "Первая работа")
-        self.assertNotContains(response, "Комментарий первой работы")
-        self.assertEqual(response.context["next_post"], older.pk)
-        self.assertEqual(response.context["previous_post"], older.pk)
-
-        response = self.client.get(url, {"post": older.pk}, headers={"X-Muralium-Feed": "1"})
-        self.assertTemplateUsed(response, "feed.html")
         self.assertContains(response, "Первая работа")
         self.assertContains(response, "Комментарий первой работы")
-        self.assertNotContains(response, "Вторая работа")
+        self.assertNotContains(response, "Скрытая работа")
+        self.assertNotContains(response, "feed-arrow")
+        self.assertNotContains(response, "/static/js/feed.js")
         self.assertContains(response, reverse("profile", args=[self.owner.pk]))
-        self.assertEqual(response.context["previous_post"], latest.pk)
-        self.assertEqual(response.context["next_post"], latest.pk)
+        self.assertEqual([project.pk for project in response.context["projects"]], [latest.pk, older.pk])
+        self.assertRedirects(self.client.get(url, {"post": older.pk}), f"{url}#project-{older.pk}")
         self.assertEqual(self.client.get(url, {"post": pending.pk}).status_code, 404)
 
         response = self.client.post(reverse("comment", args=[older.pk]), {
             "source": "feed", "text": "Новый комментарий",
         })
-        self.assertRedirects(response, f"{url}?post={older.pk}#projects")
+        self.assertRedirects(response, f"{url}#project-{older.pk}")
         detail = self.client.get(reverse("placement", args=[older.pk]))
-        self.assertContains(detail, f'href="{url}?post={older.pk}#projects"')
+        self.assertContains(detail, f'href="{url}#project-{older.pk}"')
         self.assertContains(detail, "publication-author-name")
 
     def test_feed_fills_stars_and_shows_only_the_most_liked_comment(self):
@@ -683,7 +678,7 @@ class PlacementWorkflowTests(TestCase):
         self.assertEqual(Comment.objects.filter(placement=project).count(), 1)
         self.assertEqual(self.client.post(comment_url, {"text": "   "}, headers=headers).status_code, 400)
 
-        feed = self.client.get(reverse("home"), {"post": project.pk}).content.decode()
+        feed = self.client.get(reverse("home")).content.decode()
         response = self.client.post(
             comment_url, {"text": "Из ленты", "source": "feed"}, headers=headers,
         )
