@@ -2,6 +2,9 @@
 {% block title %}{{ profile.nickname|default:profile_user.username }} · Muralium{% endblock %}
 {% block content %}
 {% include "profile_header.html" %}
+{% if may_manage_restrictions %}
+<p class="project-feed-return"><a class="button outline" href="{% url 'moderation_restrict_account' profile_user.pk %}">Управлять ограничениями</a></p>
+{% endif %}
 <section class="section">
   <header class="section-heading"><h2>Опубликованные работы</h2></header>
   {% include "project_grid.html" with empty_copy="У автора пока нет опубликованных работ." %}

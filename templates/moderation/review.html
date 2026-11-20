@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ project.title }} · Модерация{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'moderation_queue' %}">← Вернуться к очереди</a>
+<header class="page-heading">
+  <h1>{{ project.title }}</h1>
+  <p>{{ project.building.address }} · <a href="{% url 'profile' project.author_id %}">{{ project.author.profile.nickname|default:project.author.username }}</a></p>
+</header>
+<div class="project-detail-layout">
+  <div>
+    {% url 'asset' 'facade' project.facade_photo_id as facade_url %}
+    {% url 'asset' 'design' project.mural_design_id as design_url %}
+    {% url 'project_image' project.pk 'result' as result_url %}
+    <div class="project-grid">
+      <div><h3>Фасад</h3><a href="{{ facade_url }}"><img class="building-cover" src="{{ facade_url }}" alt="Исходное фото фасада"></a></div>
+      <div><h3>Эскиз</h3><a href="{{ design_url }}"><img class="building-cover" src="{{ design_url }}" alt="Исходный эскиз"></a></div>
+      <div><h3>Результат</h3><a href="{{ result_url }}"><img class="building-cover" src="{{ result_url }}" alt="Фасад с муралом"></a></div>
+    </div>
+    <div class="project-description">{{ project.description|linebreaks }}</div>
+  </div>
+  <section class="panel editor-panel">
+    {% if can_decide %}
+    <h2>Решение по заявке</h2>
+    <form method="post" class="field-stack">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      {{ form.status.as_field_group }}
+      <div data-moderation-note>{{ form.rejection_reason.as_field_group }}</div>
+      <div data-moderation-note>{{ form.revision_notes.as_field_group }}</div>
+      <button class="button lime" type="submit">Сохранить решение</button>
+    </form>
+    {% else %}
+    <h2>{{ project.get_status_display }}</h2>
+    {% if project.rejection_reason %}<p>{{ project.rejection_reason|linebreaksbr }}</p>{% endif %}
+    {% if project.revision_notes %}<p>{{ project.revision_notes|linebreaksbr }}</p>{% endif %}
+    {% endif %}
+  </section>
+</div>
+<section class="section" aria-labelledby="review-history">
+  <header class="section-heading"><h2 id="review-history">История заявки</h2></header>
+  {% include "moderation/decisions.html" %}
+</section>
+{% endblock %}
+{% block scripts %}{% if can_decide %}{{ form.media }}{% endif %}{% endblock %}

@@ -7,6 +7,7 @@ from apps.buildings.models import FacadePhoto
 from apps.murals.models import MuralDesign
 
 from .services.perspective import read_image, validate_corners
+from .text_moderation import validate_public_text
 
 
 class RatingForm(forms.Form):
@@ -14,13 +15,14 @@ class RatingForm(forms.Form):
 
 
 class CommentForm(forms.Form):
-    text = forms.CharField(max_length=800, label="Комментарий")
+    text = forms.CharField(max_length=800, label="Комментарий", validators=[validate_public_text])
 
 
 class PlacementForm(forms.Form):
-    title = forms.CharField(max_length=200, label="Название")
+    title = forms.CharField(max_length=200, label="Название", validators=[validate_public_text])
     description = forms.CharField(
         max_length=2000, label="Описание", widget=forms.Textarea(attrs={"rows": 3}),
+        validators=[validate_public_text],
     )
     facade = forms.ModelChoiceField(
         queryset=FacadePhoto.objects.none(), required=False, label="Готовый фасад",
@@ -34,10 +36,15 @@ class PlacementForm(forms.Form):
     mural_file = forms.FileField(required=False, label="Свой эскиз")
     corners = forms.CharField(max_length=512, widget=forms.HiddenInput)
 
-    def __init__(self, *args, building, preview=False, **kwargs):
+    def __init__(self, *args, building, preview=False, revision=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["facade"].queryset = building.facades.filter(is_public=True).order_by("pk")
-        self.fields["design"].queryset = building.designs.filter(is_public=True).order_by("pk")
+        facades = building.facades.filter(is_public=True)
+        designs = building.designs.filter(is_public=True)
+        if revision:
+            facades = facades | FacadePhoto.objects.filter(pk=revision.facade_photo_id)
+            designs = designs | MuralDesign.objects.filter(pk=revision.mural_design_id)
+        self.fields["facade"].queryset = facades.order_by("pk")
+        self.fields["design"].queryset = designs.order_by("pk")
         for name in ("facade_file", "mural_file"):
             self.fields[name].widget.attrs["accept"] = "image/jpeg,image/png"
         if preview:

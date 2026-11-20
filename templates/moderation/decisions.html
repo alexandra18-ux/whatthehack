@@ -1,0 +1,15 @@
+<ul class="comment-list">
+  {% for decision in decisions %}
+  <li class="panel">
+    <div class="comment-header">
+      <a href="{% url 'moderation_review' decision.placement_id %}">{{ decision.placement.title }}</a>
+      <time datetime="{{ decision.created_at|date:'c' }}">{{ decision.created_at|date:"j E Y, H:i" }}</time>
+    </div>
+    <p><strong>{{ decision.get_status_display }}</strong> · {{ decision.moderator_username }}</p>
+    {% if decision.rejection_reason %}<p>{{ decision.rejection_reason|linebreaksbr }}</p>{% endif %}
+    {% if decision.revision_notes %}<p>{{ decision.revision_notes|linebreaksbr }}</p>{% endif %}
+  </li>
+  {% empty %}
+  <li>В журнале пока нет решений.</li>
+  {% endfor %}
+</ul>

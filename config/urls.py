@@ -5,6 +5,7 @@ from django.views.generic import TemplateView
 
 from apps.buildings import views as buildings
 from apps.maps.views import maps
+from apps.placements import comment_moderation, moderation
 from apps.placements import views as placements
 from apps.users import views as users
 
@@ -13,6 +14,13 @@ urlpatterns = [
     path("search/", placements.search, name="search"),
     path("about/", TemplateView.as_view(template_name="about.html"), name="about"),
     path("admin/", admin.site.urls),
+    path("moderation/", moderation.queue, name="moderation_queue"),
+    path("moderation/history/", moderation.history, name="moderation_history"),
+    path("moderation/comments/", comment_moderation.comment_list, name="moderation_comments"),
+    path("moderation/comments/<int:pk>/delete/", comment_moderation.delete_comment, name="moderation_delete_comment"),
+    path("moderation/accounts/", comment_moderation.account_list, name="moderation_accounts"),
+    path("moderation/accounts/<int:pk>/", comment_moderation.restrict_account, name="moderation_restrict_account"),
+    path("moderation/<int:pk>/", moderation.review, name="moderation_review"),
     path("accounts/register/", users.register, name="register"),
     path("accounts/login/", auth_views.LoginView.as_view(), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
@@ -24,6 +32,8 @@ urlpatterns = [
     path("people/<int:pk>/", users.public_profile, name="profile"),
     path("people/<int:pk>/avatar/", users.avatar, name="avatar"),
     path("placements/<int:pk>/", placements.detail, name="placement"),
+    path("placements/<int:pk>/revise/", placements.revise, name="revise"),
+    path("placements/<int:revision_pk>/revise/preview/", placements.preview, name="revision_preview"),
     path("placements/<int:pk>/rating/", placements.rate, name="rate"),
     path("placements/<int:pk>/comments/", placements.comment, name="comment"),
     path("comments/<int:pk>/like/", placements.like_comment, name="like_comment"),

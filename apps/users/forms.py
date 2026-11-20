@@ -1,11 +1,20 @@
 from django import forms
+from django.contrib.auth.forms import UserCreationForm
 from PIL import ImageOps
 
 from apps.placements.services.perspective import encode_image, read_image
+from apps.placements.text_moderation import validate_public_text
+
+
+class RegistrationForm(UserCreationForm):
+    def clean_username(self):
+        username = super().clean_username()
+        validate_public_text(username)
+        return username
 
 
 class ProfileForm(forms.Form):
-    nickname = forms.CharField(label="Ник", max_length=40, required=False)
+    nickname = forms.CharField(label="Ник", max_length=40, required=False, validators=[validate_public_text])
     avatar = forms.FileField(
         label="Новый аватар", required=False,
         widget=forms.FileInput(attrs={"accept": "image/jpeg,image/png"}),

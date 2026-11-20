@@ -1,17 +1,17 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import UserCreationForm
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
-from apps.placements.models import Placement, author_rating, published_placements
+from apps.placements.models import ModerationDecision, Placement, author_rating, published_placements
 from apps.placements.views import image_response
 
-from .forms import ProfileForm
+from .auth import can_manage_restrictions
+from .forms import ProfileForm, RegistrationForm
 from .models import Profile
 
 
@@ -22,7 +22,7 @@ def register(request):
         next_url = ""
     if request.user.is_authenticated:
         return redirect(next_url or "mine")
-    form = UserCreationForm(request.POST if request.method == "POST" else None)
+    form = RegistrationForm(request.POST if request.method == "POST" else None)
     if form.is_valid():
         login(request, form.save())
         return redirect(next_url or "map")
@@ -46,9 +46,13 @@ def account(request):
 
     projects = Placement.objects.filter(author=request.user).select_related("building", "author__profile")
     page = Paginator(projects, 12).get_page(request.GET.get("page"))
+    notifications = ModerationDecision.objects.filter(
+        placement__author=request.user,
+        status__in=[Placement.Status.APPROVED, Placement.Status.REJECTED, Placement.Status.REVISION],
+    ).select_related("placement")[:12]
     return render(request, "mine.html", {
         "profile_user": request.user, "profile": profile, "form": form,
-        "profile_rating": author_rating(request.user),
+        "profile_rating": author_rating(request.user), "notifications": notifications,
         "projects": page.object_list, "page": page,
     })
 
@@ -81,6 +85,7 @@ def public_profile(request, pk):
     return render(request, "profile.html", {
         "profile_user": author, "profile": getattr(author, "profile", None),
         "profile_rating": author_rating(author),
+        "may_manage_restrictions": can_manage_restrictions(request.user, author),
         "projects": page.object_list, "page": page,
     })
 

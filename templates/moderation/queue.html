@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Модерация · Muralium{% endblock %}
+{% block content %}
+<header class="page-heading">
+  <h1>Модерация</h1>
+  <p>Заявки на рассмотрении: {{ page.paginator.count }}</p>
+  <nav class="address-actions" aria-label="Разделы модерации">
+    <a class="button outline" href="{% url 'moderation_history' %}">История модерации</a>
+    <a class="button outline" href="{% url 'moderation_comments' %}">Комментарии</a>
+    <a class="button outline" href="{% url 'moderation_accounts' %}">Пользователи</a>
+  </nav>
+</header>
+<div class="project-grid">
+  {% for project in page %}
+  <article class="panel">
+    <h2><a href="{% url 'moderation_review' project.pk %}">{{ project.title }}</a></h2>
+    <p>{{ project.building.address }}</p>
+    <p>{{ project.author.profile.nickname|default:project.author.username }} · {{ project.created_at|date:"j E Y, H:i" }}</p>
+  </article>
+  {% empty %}
+  <p>Новых заявок пока нет.</p>
+  {% endfor %}
+</div>
+{% include "pagination.html" %}
+{% endblock %}

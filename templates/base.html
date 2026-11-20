@@ -17,6 +17,9 @@
       <a href="{% url 'home' %}#projects"{% if request.resolver_match.url_name == "home" %} aria-current="page"{% endif %}>Проекты</a>
       <a href="{% url 'map' %}"{% if request.resolver_match.url_name == "map" %} aria-current="page"{% endif %}>Карта</a>
       <a href="{% url 'about' %}"{% if request.resolver_match.url_name == "about" %} aria-current="page"{% endif %}>О проекте</a>
+      {% if user.is_staff and perms.placements.moderate_placement %}
+      <a href="{% url 'moderation_queue' %}"{% if request.resolver_match.url_name|slice:":11" == "moderation_" %} aria-current="page"{% endif %}>Модерация</a>
+      {% endif %}
     </nav>
     <form class="header-search" role="search" action="{% url 'search' %}" method="get">
       <label class="visually-hidden" for="project-search">Поиск проектов</label>

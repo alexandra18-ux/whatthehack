@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Пользователи · Модерация · Muralium{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'moderation_queue' %}">← К модерации</a>
+<header class="page-heading"><h1>Пользователи</h1></header>
+{% url 'moderation_accounts' as directory %}
+<nav class="address-actions" aria-label="Фильтр пользователей">
+  <a class="button outline" href="{{ directory }}{% querystring status=None page=None %}"{% if not restricted_only %} aria-current="page"{% endif %}>Все пользователи</a>
+  <a class="button outline" href="{{ directory }}{% querystring status='restricted' page=None %}"{% if restricted_only %} aria-current="page"{% endif %}>С активными ограничениями</a>
+</nav>
+<form class="panel field-stack" method="get">
+  <label for="account-query">Логин или ник</label>
+  <input id="account-query" name="q" value="{{ query }}" maxlength="200" type="search">
+  {% if restricted_only %}<input type="hidden" name="status" value="restricted">{% endif %}
+  <button class="button lime" type="submit">Найти</button>
+</form>
+<ul class="comment-list">
+  {% for account in page %}
+  <li class="panel">
+    {% if account.is_active %}<a href="{% url 'profile' account.pk %}">{{ account.profile.nickname|default:account.username }}</a>
+    {% else %}<strong>{{ account.profile.nickname|default:account.username }}</strong>{% endif %}
+    {% if account.profile.nickname %}<p>{{ account.username }}</p>{% endif %}
+    {% with limits=account.restrictions %}
+    {% if limits.ban_active %}<p>Блокировка аккаунта · {% if limits.banned_until %}до {{ limits.banned_until|date:"j E Y, H:i" }}{% else %}бессрочно{% endif %}</p>{% endif %}
+    {% if limits.comments_block_active %}<p>Запрет комментариев · {% if limits.comments_blocked_until %}до {{ limits.comments_blocked_until|date:"j E Y, H:i" }}{% else %}бессрочно{% endif %}</p>{% endif %}
+    {% if limits.publications_block_active %}<p>Запрет отправки работ · {% if limits.publications_blocked_until %}до {{ limits.publications_blocked_until|date:"j E Y, H:i" }}{% else %}бессрочно{% endif %}</p>{% endif %}
+    {% endwith %}
+    {% if account.can_manage_restrictions %}
+    <a class="button outline compact" href="{% url 'moderation_restrict_account' account.pk %}">Управлять ограничениями</a>
+    {% endif %}
+  </li>
+  {% empty %}<li>Пользователи не найдены.</li>{% endfor %}
+</ul>
+{% if page.has_other_pages %}
+<nav class="pagination" aria-label="Страницы">
+  {% if page.has_previous %}<a class="button outline compact" href="{% querystring page=page.previous_page_number %}">Назад</a>{% endif %}
+  <span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="button outline compact" href="{% querystring page=page.next_page_number %}">Дальше</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

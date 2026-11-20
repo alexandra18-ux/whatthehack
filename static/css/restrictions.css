@@ -1,0 +1,43 @@
+.restriction-card {
+  max-width: 680px;
+}
+.restriction-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 1fr);
+  align-items: start;
+  gap: 4px 20px;
+  padding-block: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.restriction-card .restriction-row label {
+  margin: 0;
+  align-self: start;
+  padding-block: 10px;
+  font-size: .95rem;
+}
+.restriction-choice select {
+  min-height: 42px;
+}
+.restriction-caption {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: .875rem;
+}
+.restriction-caption:empty {
+  display: none;
+}
+.restriction-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+@media (max-width: 540px) {
+  .restriction-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .restriction-card .restriction-row label {
+    padding-block: 0;
+  }
+}

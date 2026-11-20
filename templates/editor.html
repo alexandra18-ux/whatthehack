@@ -2,9 +2,15 @@
 {% block title %}Редактор мурала · Muralium{% endblock %}
 {% block content %}
 <a class="back-link" href="{% url 'building' building.pk %}">{{ building.address }}</a>
-<header class="page-heading"><h1>Редактор мурала</h1><p>Выберите фасад и эскиз, затем отметьте границы стены.</p></header>
+<header class="page-heading"><h1>{% if revision %}Доработка заявки{% else %}Редактор мурала{% endif %}</h1><p>Выберите фасад и эскиз, затем отметьте границы стены.</p></header>
+{% if revision %}<p class="notice">{{ revision.revision_notes|linebreaksbr }}</p>{% endif %}
+{% url 'preview' as default_preview %}
 <form class="editor-layout" id="placement-editor" method="post" enctype="multipart/form-data"
-      data-preview="{% url 'preview' %}" data-facades="{% url 'facades_api' building.pk %}" data-designs="{% url 'designs_api' building.pk %}">
+      data-preview="{{ preview_url|default:default_preview }}" data-facades="{% url 'facades_api' building.pk %}" data-designs="{% url 'designs_api' building.pk %}"
+      {% if revision %}
+      data-current-facade="{{ revision.facade_photo_id }}" data-current-facade-url="{% url 'asset' 'facade' revision.facade_photo_id %}"
+      data-current-design="{{ revision.mural_design_id }}" data-current-design-url="{% url 'asset' 'design' revision.mural_design_id %}"
+      {% endif %}>
   {% csrf_token %}
   <input type="hidden" name="building" value="{{ building.pk }}">
   {{ form.corners }}
@@ -50,7 +56,7 @@
       {{ form.title.as_field_group }}
       {{ form.description.as_field_group }}
     </fieldset>
-    <button class="button lime" id="submit-placement" disabled>Отправить на модерацию</button>
+    <button class="button lime" id="submit-placement" disabled>{% if revision %}Отправить повторно{% else %}Отправить на модерацию{% endif %}</button>
   </aside>
 </form>
 {% endblock %}

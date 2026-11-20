@@ -1,11 +1,13 @@
+import json
 import re
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count, Exists, OuterRef, Q
+from django.db.models import Count, Exists, OuterRef, Prefetch, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -60,6 +62,7 @@ def home(request):
             previous_post=previous_post,
             next_post=next_post,
             comments=with_comment_likes(project, request.user).order_by("-like_count", "-created_at", "-pk")[:1],
+            comment_draft=take_comment_draft(request, project),
         )
 
     if request.headers.get("X-Muralium-Feed") == "1":
@@ -132,6 +135,7 @@ def detail(request, pk):
     return render(request, "placement.html", {
         "project": project, "published": published,
         "comments": page.object_list if page else [], "page": page,
+        "comment_draft": take_comment_draft(request, project) if published else "",
     })
 
 
@@ -192,13 +196,34 @@ def rate(request, pk):
 def comment(request, pk):
     project = get_object_or_404(published_placements(), pk=pk)
     form = CommentForm(request.POST)
-    if form.is_valid():
-        Comment.objects.create(placement=project, author=request.user, text=form.cleaned_data["text"])
-    else:
-        if asynchronous_feedback(request):
-            return JsonResponse({"error": "Введите комментарий длиной от 1 до 800 символов."}, status=400)
-        messages.error(request, "Введите комментарий длиной от 1 до 800 символов.")
+    is_async = asynchronous_feedback(request)
+    with transaction.atomic():
+        author = get_user_model().objects.select_for_update().get(pk=request.user.pk)
+        restriction = getattr(author, "restrictions", None)
+        if restriction and (restriction.ban_active or restriction.comments_block_active):
+            error = "Вам запрещено оставлять комментарии."
+            if is_async:
+                return JsonResponse({"error": error}, status=403)
+            messages.error(request, error)
+        elif form.is_valid():
+            Comment.objects.create(placement=project, author=author, text=form.cleaned_data["text"])
+        else:
+            error = form.errors["text"][0]
+            if is_async:
+                return JsonResponse({"error": error}, status=400)
+            request.session["comment_draft"] = {
+                "project": project.pk,
+                "text": request.POST.get("text", "")[:800],
+                "error": error,
+            }
     return feedback_response(request, project, "comments", new_comment=True)
+
+
+def take_comment_draft(request, project):
+    draft = request.session.get("comment_draft")
+    if draft and draft["project"] == project.pk:
+        return request.session.pop("comment_draft")
+    return None
 
 
 @login_required
@@ -272,14 +297,17 @@ def rendered_image(data):
 
 @require_POST
 @never_cache
-def preview(request):
+def preview(request, revision_pk=None):
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Войдите, чтобы создать визуализацию."}, status=401)
+    if not can_submit_work(request.user):
+        return JsonResponse({"error": "Вам запрещено отправлять работы."}, status=403)
     try:
-        building = selected_building(request.POST.get("building"))
+        revision = get_object_or_404(revisable_placements(request.user), pk=revision_pk) if revision_pk else None
+        building = revision.building if revision else selected_building(request.POST.get("building"))
     except Http404:
-        return JsonResponse({"error": "Здание не найдено."}, status=404)
-    form = PlacementForm(request.POST, request.FILES, building=building, preview=True)
+        return JsonResponse({"error": "Заявка на доработке или здание не найдены."}, status=404)
+    form = PlacementForm(request.POST, request.FILES, building=building, preview=True, revision=revision)
     if not form.is_valid():
         return JsonResponse({"errors": dict(form.errors)}, status=400)
     try:
@@ -289,7 +317,16 @@ def preview(request):
     return HttpResponse(result.read(), content_type="image/png")
 
 
-def save_project(building, author, data, result):
+def can_submit_work(user):
+    restriction = getattr(user, "restrictions", None)
+    return not (restriction and (restriction.ban_active or restriction.publications_block_active))
+
+
+def revisable_placements(author):
+    return Placement.objects.filter(author=author, status=Placement.Status.REVISION)
+
+
+def save_project(building, author, data, result, *, revision=None):
     stored_files = []
 
     def store(field, content):
@@ -298,6 +335,17 @@ def save_project(building, author, data, result):
 
     try:
         with transaction.atomic():
+            author = get_user_model().objects.select_for_update().get(pk=author.pk)
+            if not can_submit_work(author):
+                raise PermissionDenied("Вам запрещено отправлять работы.")
+            if revision is None:
+                project = Placement(building=building, author=author)
+            else:
+                project = get_object_or_404(revisable_placements(author).select_for_update(), pk=revision.pk)
+                current = (project.facade_photo_id, project.mural_design_id, project.result_image.name, project.revision_notes)
+                original = (revision.facade_photo_id, revision.mural_design_id, revision.result_image.name, revision.revision_notes)
+                if current != original:
+                    raise ValidationError("Заявка изменилась. Откройте редактор заново.")
             facade = data["facade"]
             if data["facade_file"]:
                 facade = FacadePhoto(building=building, uploaded_by=author)
@@ -310,12 +358,21 @@ def save_project(building, author, data, result):
                 design.save()
                 design.buildings.add(building)
 
-            project = Placement(
-                building=building, author=author, facade_photo=facade, mural_design=design,
-                title=data["title"], description=data["description"], corners=data["corners"],
-            )
+            previous_image = project.result_image.name
+            storage = project.result_image.storage
+            project.facade_photo = facade
+            project.mural_design = design
+            project.title = data["title"]
+            project.description = data["description"]
+            project.corners = data["corners"]
+            project.status = Placement.Status.PENDING
+            project.published_at = None
+            project.revision_notes = ""
+            project.rejection_reason = ""
             store(project.result_image, encode_image(result, png=True))
             project.save()
+            if previous_image:
+                transaction.on_commit(lambda: storage.delete(previous_image), robust=True)
     except Exception:
         for storage, name in stored_files:
             storage.delete(name)
@@ -326,6 +383,8 @@ def save_project(building, author, data, result):
 @login_required
 @require_http_methods(["GET", "POST"])
 def create(request):
+    if not can_submit_work(request.user):
+        raise PermissionDenied("Вам запрещено отправлять работы.")
     submitting = request.method == "POST"
     building_id = (request.POST if submitting else request.GET).get("building")
     if not building_id and not submitting:
@@ -347,3 +406,39 @@ def create(request):
             return redirect("placement", pk=project.pk)
 
     return render(request, "editor.html", {"building": building, "form": form})
+
+
+
+@login_required
+@never_cache
+@require_http_methods(["GET", "POST"])
+def revise(request, pk):
+    if not can_submit_work(request.user):
+        raise PermissionDenied("Вам запрещено отправлять работы.")
+    project = get_object_or_404(revisable_placements(request.user).select_related("building"), pk=pk)
+    submitting = request.method == "POST"
+    form = PlacementForm(
+        request.POST if submitting else None,
+        request.FILES if submitting else None,
+        building=project.building,
+        revision=project,
+        initial={
+            "title": project.title, "description": project.description,
+            "facade": project.facade_photo_id, "design": project.mural_design_id,
+            "corners": json.dumps(project.corners),
+        },
+    )
+    if form.is_valid():
+        try:
+            result = rendered_image(form.cleaned_data)
+            save_project(project.building, request.user, form.cleaned_data, result, revision=project)
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(request, "Исправленная заявка отправлена на модерацию.")
+            return redirect("placement", pk=project.pk)
+
+    return render(request, "editor.html", {
+        "building": project.building, "form": form, "revision": project,
+        "preview_url": reverse("revision_preview", args=[project.pk]),
+    })

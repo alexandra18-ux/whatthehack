@@ -3,6 +3,29 @@
 {% block content %}
 {% include "profile_header.html" with own_profile=True %}
 <form class="account-logout" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="button outline compact">Выйти</button></form>
+{% if user.restrictions.publications_block_active %}<p class="notice">Вам запрещено отправлять новые работы и доработки.</p>{% endif %}
+{% if user.restrictions.comments_block_active %}<p class="notice">Вам запрещено оставлять комментарии.</p>{% endif %}
+{% if notifications %}
+<section class="section" aria-labelledby="moderation-notifications">
+  <header class="section-heading"><h2 id="moderation-notifications">Уведомления о модерации</h2></header>
+  <ul class="comment-list">
+    {% for decision in notifications %}
+    <li class="panel">
+      <div class="comment-header">
+        <a href="{% url 'placement' decision.placement_id %}">{{ decision.placement.title }}</a>
+        <time datetime="{{ decision.created_at|date:'c' }}">{{ decision.created_at|date:"j E Y, H:i" }}</time>
+      </div>
+      <p><strong>{{ decision.get_status_display }}</strong></p>
+      {% if decision.rejection_reason %}<p>{{ decision.rejection_reason|linebreaksbr }}</p>{% endif %}
+      {% if decision.revision_notes %}<p>{{ decision.revision_notes|linebreaksbr }}</p>{% endif %}
+      {% if decision.status == "revision" and decision.placement.status == "revision" and not user.restrictions.publications_block_active %}
+      <a class="back-link" href="{% url 'revise' decision.placement_id %}">Доработать заявку</a>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 <section class="panel profile-settings">
   <h2>Настройки профиля</h2>
   <form method="post" enctype="multipart/form-data" class="field-stack">
@@ -16,7 +39,7 @@
   <a class="back-link" href="{% url 'profile' profile_user.pk %}">Открыть публичный профиль</a>
 </section>
 <section class="section">
-  <header class="section-heading"><h2>Моя стена</h2><a class="button lime" href="{% url 'map' %}">Создать проект</a></header>
+  <header class="section-heading"><h2>Моя стена</h2>{% if not user.restrictions.publications_block_active %}<a class="button lime" href="{% url 'map' %}">Создать проект</a>{% endif %}</header>
   {% include "project_grid.html" with empty_copy="У вас пока нет проектов." %}
   {% include "pagination.html" %}
 </section>

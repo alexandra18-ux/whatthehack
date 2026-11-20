@@ -1,5 +1,6 @@
 import io
 import json
+from datetime import timedelta
 from tempfile import TemporaryDirectory
 
 from django.contrib.auth import get_user_model
@@ -8,11 +9,13 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import escape
 from PIL import Image
 
 from apps.buildings.models import Building
+from apps.users.models import AccountRestriction
 
-from .models import Comment, CommentLike, Placement, Rating
+from .models import Comment, CommentDeletion, CommentLike, ModerationDecision, Placement, Rating
 
 
 class PlacementWorkflowTests(TestCase):
@@ -133,6 +136,8 @@ class PlacementWorkflowTests(TestCase):
 
         project.refresh_from_db()
         self.assertIsNotNone(project.published_at)
+        decision = ModerationDecision.objects.get(placement=project)
+        self.assertEqual((decision.moderator, decision.status), (moderator, Placement.Status.APPROVED))
         for url in (detail, result, before):
             response = visitor.get(url)
             self.assertEqual(response.status_code, 200)
@@ -142,6 +147,352 @@ class PlacementWorkflowTests(TestCase):
             self.assertEqual(visitor.get(url).status_code, 404)
         self.assertEqual(visitor.get(reverse("map_api")).json()["projects"][0]["id"], project.pk)
         self.assertContains(visitor.get(reverse("home")), project.title)
+
+    def test_site_moderation_requires_permission_and_applies_decisions(self):
+        rejected = self.create_work("Работа для отказа")
+        approved = self.create_work("Работа для публикации")
+        queue = reverse("moderation_queue")
+        history = reverse("moderation_history")
+        reject_url = reverse("moderation_review", args=[rejected.pk])
+        approve_url = reverse("moderation_review", args=[approved.pk])
+
+        self.assertEqual(Client().get(queue).status_code, 302)
+        self.assertNotContains(self.client.get(reverse("home")), f'href="{queue}"')
+        self.assertEqual(self.client.get(queue).status_code, 403)
+        self.assertEqual(self.client.get(history).status_code, 403)
+        self.assertEqual(self.client.post(approve_url, {"status": "approved"}).status_code, 403)
+
+        moderator = get_user_model().objects.create_user(username="site-moderator", is_staff=True)
+        moderator.user_permissions.add(Permission.objects.get(codename="moderate_placement"))
+        self.client.force_login(moderator)
+
+        self.assertContains(self.client.get(reverse("home")), f'href="{queue}"')
+        response = self.client.get(queue)
+        self.assertEqual(list(response.context["page"]), [rejected, approved])
+        self.assertContains(self.client.get(reject_url), "Решение по заявке")
+        response = self.client.post(reject_url, {"status": "rejected"})
+        self.assertContains(response, "Укажите причину отклонения.")
+        rejected.refresh_from_db()
+        self.assertEqual(rejected.status, Placement.Status.PENDING)
+        self.assertRedirects(self.client.post(reject_url, {
+            "status": "rejected", "rejection_reason": "Нужен новый эскиз",
+        }), queue)
+        self.assertRedirects(self.client.post(approve_url, {
+            "status": "approved", "rejection_reason": "Не относится к публикации",
+        }), queue)
+        self.assertRedirects(self.client.post(reject_url, {"status": "approved"}), queue)
+
+        rejected.refresh_from_db()
+        approved.refresh_from_db()
+        self.assertEqual(rejected.status, Placement.Status.REJECTED)
+        self.assertEqual(rejected.rejection_reason, "Нужен новый эскиз")
+        self.assertIsNone(rejected.published_at)
+        self.assertEqual(approved.status, Placement.Status.APPROVED)
+        self.assertIsNotNone(approved.published_at)
+        self.assertEqual(approved.rejection_reason, "")
+        decisions = list(ModerationDecision.objects.values_list("moderator_username", "status", "rejection_reason"))
+        self.assertEqual(decisions, [
+            ("site-moderator", "approved", ""),
+            ("site-moderator", "rejected", "Нужен новый эскиз"),
+        ])
+        response = self.client.get(history)
+        self.assertContains(response, "site-moderator")
+        self.assertContains(response, "Нужен новый эскиз")
+        self.assertEqual(list(self.client.get(queue).context["page"]), [])
+        self.assertContains(Client().get(reverse("home")), approved.title)
+
+    def test_comment_filter_and_moderator_deletion(self):
+        project = self.create_work("Мурал для обсуждения", timezone.now())
+        comment_url = reverse("comment", args=[project.pk])
+        detail = reverse("placement", args=[project.pk])
+        comment_list = reverse("moderation_comments")
+        words = ("БЛЯТЬ!", "Ну, СУКА.", "ＦＵＣＨ", "Долбоёб")
+        for text in words:
+            with self.subTest(text=text):
+                response = self.client.post(comment_url, {"text": text}, follow=True)
+                self.assertContains(response, "запрещено уберите его и отправьте снова.")
+                self.assertIn(response.context["comment_draft"]["error"].split('"')[1], ("БЛЯТЬ", "СУКА", "FUCH", "Долбоёб"))
+                self.assertContains(response, text)
+                self.assertFalse(project.comments.exists())
+
+        response = self.client.post(comment_url, {"text": "СУКА!"}, headers={"X-Muralium-Async": "1"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('"СУКА"', response.json()["error"])
+        self.assertFalse(project.comments.exists())
+
+        self.client.post(comment_url, {"text": "Круглый сучок на фасаде"})
+        entry = project.comments.get()
+        delete = reverse("moderation_delete_comment", args=[entry.pk])
+        self.assertNotContains(self.client.get(detail), delete)
+        self.assertEqual(self.client.get(comment_list).status_code, 403)
+        self.assertEqual(self.client.post(delete).status_code, 403)
+
+        moderator = get_user_model().objects.create_user(username="comment-moderator", is_staff=True)
+        moderator.user_permissions.add(Permission.objects.get(codename="moderate_placement"))
+        reviewer = Client()
+        reviewer.force_login(moderator)
+        self.assertContains(reviewer.get(detail), delete)
+        self.assertContains(reviewer.get(comment_list, {"q": "сучок"}), entry.text)
+        self.assertEqual(reviewer.get(delete).status_code, 405)
+        self.assertRedirects(reviewer.post(delete), f"{detail}#comments")
+        self.assertFalse(project.comments.exists())
+
+        self.client.post(comment_url, {"text": "Новый комментарий"})
+        delete = reverse("moderation_delete_comment", args=[project.comments.get().pk])
+        self.assertRedirects(reviewer.post(delete, {"source": "moderation"}), comment_list)
+        self.assertFalse(project.comments.exists())
+        self.assertEqual(CommentDeletion.objects.filter(
+            placement=project, author_username=self.owner.username, moderator_username=moderator.username,
+        ).count(), 2)
+        self.assertEqual(reviewer.post(delete).status_code, 404)
+        self.assertEqual(CommentDeletion.objects.count(), 2)
+
+        history = reverse("moderation_history")
+        self.assertEqual(self.client.get(history, {"kind": "comments"}).status_code, 403)
+        response = reviewer.get(history, {
+            "kind": "comments", "title": project.title, "author": self.owner.username, "moderator": moderator.username,
+        })
+        self.assertContains(response, entry.text)
+        self.assertContains(response, "Новый комментарий")
+        self.assertContains(response, moderator.username)
+        self.assertNotContains(self.client.get(detail), entry.text)
+
+    def test_filter_blocks_public_work_metadata_and_profile_names(self):
+        payload = self.payload()
+        payload.update(title="Фасад: СУКА!", description="Эскиз FUCH")
+        response = self.client.post(reverse("create"), payload)
+        self.assertContains(response, escape('Слово "СУКА" запрещено уберите его и отправьте снова.'))
+        self.assertContains(response, escape('Слово "FUCH" запрещено уберите его и отправьте снова.'))
+        self.assertFalse(Placement.objects.exists())
+
+        response = self.client.post(reverse("mine"), {"nickname": "Блять художник"})
+        self.assertContains(response, escape('Слово "Блять" запрещено уберите его и отправьте снова.'))
+        self.assertFalse(hasattr(self.owner, "profile"))
+
+        response = Client().post(reverse("register"), {
+            "username": "fuch_artist", "password1": "strong-test-password", "password2": "strong-test-password",
+        })
+        self.assertContains(response, escape('Слово "fuch" запрещено уберите его и отправьте снова.'))
+        self.assertFalse(get_user_model().objects.filter(username="fuch_artist").exists())
+
+    def test_moderator_account_restrictions_and_unban(self):
+        project = self.create_work("Мурал для проверки ограничений", timezone.now())
+        needs_revision = self.create_work("Мурал на доработке")
+        Placement.objects.filter(pk=needs_revision.pk).update(status=Placement.Status.REVISION)
+        moderator = get_user_model().objects.create_user(username="sanctions-moderator", is_staff=True)
+        moderator.user_permissions.add(Permission.objects.get(codename="moderate_placement"))
+        reviewer = Client()
+        reviewer.force_login(moderator)
+        restriction_url = reverse("moderation_restrict_account", args=[self.owner.pk])
+        comment_url = reverse("comment", args=[project.pk])
+        create_url = reverse("create")
+        revise_url = reverse("revise", args=[needs_revision.pk])
+        self.owner.set_password("test-author-password")
+        self.owner.save(update_fields=["password"])
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.post(restriction_url, {"banned": "indefinite"}).status_code, 403)
+        self.assertEqual(reviewer.post(
+            reverse("moderation_restrict_account", args=[moderator.pk]), {"banned": "indefinite"},
+        ).status_code, 403)
+
+        self.assertRedirects(reviewer.post(restriction_url, {"comments_blocked": "indefinite"}), restriction_url)
+        self.client.post(comment_url, {"text": "Этот комментарий запрещён"})
+        self.assertFalse(project.comments.exists())
+        self.assertEqual(self.client.get(create_url, {"building": self.building.pk}).status_code, 200)
+
+        self.assertRedirects(reviewer.post(restriction_url, {"publications_blocked": "indefinite"}), restriction_url)
+        self.client.post(comment_url, {"text": "Комментировать снова можно"})
+        self.assertEqual(project.comments.count(), 1)
+        self.assertEqual(self.client.post(create_url, self.payload()).status_code, 403)
+        self.assertEqual(self.client.get(revise_url).status_code, 403)
+        self.assertEqual(self.client.post(reverse("preview"), self.payload()).status_code, 403)
+
+        self.assertRedirects(reviewer.post(restriction_url, {"banned": "indefinite"}), restriction_url)
+        self.assertEqual(self.client.get(reverse("mine")).status_code, 302)
+        self.assertFalse(Client().login(username=self.owner.username, password="test-author-password"))
+        self.assertTrue(AccountRestriction.objects.get(user=self.owner).banned)
+        self.assertRedirects(reviewer.post(restriction_url, {}), restriction_url)
+        self.assertTrue(Client().login(username=self.owner.username, password="test-author-password"))
+
+    def test_temporary_restrictions_expire_independently(self):
+        project = self.create_work("Мурал для временных ограничений", timezone.now())
+        moderator = get_user_model().objects.create_user(username="timed-moderator", is_staff=True)
+        moderator.user_permissions.add(Permission.objects.get(codename="moderate_placement"))
+        reviewer = Client()
+        reviewer.force_login(moderator)
+        restrict_url = reverse("moderation_restrict_account", args=[self.owner.pk])
+        comment_url = reverse("comment", args=[project.pk])
+        create_url = reverse("create")
+        now = timezone.now()
+        response = reviewer.post(restrict_url, {"banned": "999"})
+        self.assertIn("banned", response.context["form"].errors)
+        self.assertFalse(AccountRestriction.objects.filter(user=self.owner).exists())
+
+        self.assertRedirects(reviewer.post(restrict_url, {
+            "comments_blocked": "24",
+            "publications_blocked": "3",
+        }), restrict_url)
+        restriction = AccountRestriction.objects.get(user=self.owner)
+        self.assertGreaterEqual(restriction.comments_blocked_until, now + timedelta(days=1))
+        self.assertLess(restriction.comments_blocked_until, now + timedelta(days=1, minutes=1))
+        self.assertGreaterEqual(restriction.publications_blocked_until, now + timedelta(hours=3))
+        self.assertLess(restriction.publications_blocked_until, now + timedelta(hours=3, minutes=1))
+        self.assertContains(reviewer.get(restrict_url), "Сохранить текущий срок")
+        self.assertRedirects(reviewer.post(restrict_url, {
+            "comments_blocked": "keep",
+            "publications_blocked": "keep",
+        }), restrict_url)
+        self.assertEqual(
+            AccountRestriction.objects.get(user=self.owner).comments_blocked_until,
+            restriction.comments_blocked_until,
+        )
+        self.client.post(comment_url, {"text": "Срок пока не истёк"})
+        self.assertFalse(project.comments.exists())
+        self.assertEqual(self.client.get(create_url, {"building": self.building.pk}).status_code, 403)
+
+        restriction.comments_blocked_until = now - timedelta(seconds=1)
+        restriction.save(update_fields=["comments_blocked_until"])
+        self.client.post(comment_url, {"text": "Срок запрета комментариев истёк"})
+        self.assertEqual(project.comments.count(), 1)
+        self.assertEqual(self.client.get(create_url, {"building": self.building.pk}).status_code, 403)
+
+        restriction.publications_blocked_until = now - timedelta(seconds=1)
+        restriction.save(update_fields=["publications_blocked_until"])
+        self.assertEqual(self.client.get(create_url, {"building": self.building.pk}).status_code, 200)
+
+        self.owner.set_password("temporary-ban-password")
+        self.owner.save(update_fields=["password"])
+        self.assertRedirects(reviewer.post(restrict_url, {
+            "banned": "24",
+        }), restrict_url)
+        self.assertFalse(Client().login(username=self.owner.username, password="temporary-ban-password"))
+        AccountRestriction.objects.filter(pk=restriction.pk).update(banned_until=now - timedelta(seconds=1))
+        self.assertTrue(Client().login(username=self.owner.username, password="temporary-ban-password"))
+        self.assertEqual(reviewer.get(restrict_url).context["form"]["banned"].value(), "off")
+
+    def test_moderation_user_directory_profile_links_and_clear_all(self):
+        expired = get_user_model().objects.create_user(username="directory-expired")
+        AccountRestriction.objects.create(
+            user=expired, comments_blocked=True, comments_blocked_until=timezone.now() - timedelta(seconds=1),
+        )
+        self.client.post(reverse("mine"), {"nickname": "Мастер фасадов"})
+        moderator = get_user_model().objects.create_user(username="directory-moderator", is_staff=True)
+        moderator.user_permissions.add(Permission.objects.get(codename="moderate_placement"))
+        reviewer = Client()
+        reviewer.force_login(moderator)
+        directory = reverse("moderation_accounts")
+        profile = reverse("profile", args=[self.owner.pk])
+        restrict_url = reverse("moderation_restrict_account", args=[self.owner.pk])
+
+        self.assertEqual(self.client.get(directory).status_code, 403)
+        self.assertNotContains(self.client.get(profile), restrict_url)
+        self.assertContains(reviewer.get(profile), restrict_url)
+        self.assertContains(reviewer.get(directory), expired.username)
+        self.assertContains(reviewer.get(directory, {"q": "Мастер"}), restrict_url)
+
+        self.assertRedirects(reviewer.post(restrict_url, {
+            "comments_blocked": "24",
+            "publications_blocked": "indefinite",
+        }), restrict_url)
+        response = reviewer.get(directory, {"status": "restricted"})
+        self.assertContains(response, self.owner.username)
+        self.assertNotContains(response, expired.username)
+
+        self.assertRedirects(reviewer.post(restrict_url, {"action": "clear"}), restrict_url)
+        self.assertNotContains(reviewer.get(directory, {"status": "restricted"}), restrict_url)
+        restriction = AccountRestriction.objects.get(user=self.owner)
+        self.assertFalse(restriction.comments_block_active)
+        self.assertFalse(restriction.publications_block_active)
+        self.assertIsNone(restriction.comments_blocked_until)
+
+    def test_author_revises_same_application_and_moderator_history_is_preserved(self):
+        project = self.create_work("Мурал для доработки")
+        moderator = get_user_model().objects.create_user(username="revision-moderator", is_staff=True)
+        moderator.user_permissions.add(Permission.objects.get(codename="moderate_placement"))
+        reviewer = Client()
+        reviewer.force_login(moderator)
+        other = Client()
+        other.force_login(get_user_model().objects.create_user(username="other-author"))
+        review = reverse("moderation_review", args=[project.pk])
+        revise = reverse("revise", args=[project.pk])
+        preview = reverse("revision_preview", args=[project.pk])
+        history = reverse("moderation_history")
+        queue = reverse("moderation_queue")
+        home = reverse("home")
+        notes = "Сдвиньте эскиз левее"
+        result = project.result_image.name
+
+        self.assertEqual(self.client.get(revise).status_code, 404)
+        self.assertContains(reviewer.post(review, {"status": "revision"}), "Укажите, что автору нужно исправить.")
+        self.assertRedirects(reviewer.post(review, {
+            "status": "revision", "revision_notes": notes, "rejection_reason": "Лишний текст",
+        }), queue)
+        self.assertNotContains(Client().get(home), project.title)
+        project.refresh_from_db()
+        self.assertEqual(project.status, Placement.Status.REVISION)
+        self.assertEqual(project.rejection_reason, "")
+        self.assertContains(self.client.get(reverse("mine")), notes)
+        self.assertNotContains(other.get(reverse("mine")), notes)
+        self.assertContains(self.client.get(revise), notes)
+        self.assertEqual(other.get(revise).status_code, 404)
+
+        data = {
+            "facade": project.facade_photo_id, "design": project.mural_design_id,
+            "corners": json.dumps(project.corners),
+        }
+        self.assertEqual(other.post(preview, data).status_code, 404)
+        self.assertEqual(self.client.post(preview, data)["Content-Type"], "image/png")
+        self.assertRedirects(self.client.post(revise, {
+            **data, "title": project.title, "description": "Исправленное описание",
+        }), reverse("placement", args=[project.pk]))
+        project.refresh_from_db()
+        self.assertEqual(Placement.objects.count(), 1)
+        self.assertEqual(project.status, Placement.Status.PENDING)
+        self.assertEqual(project.description, "Исправленное описание")
+        self.assertNotEqual(project.result_image.name, result)
+        self.assertEqual(self.client.post(revise, data).status_code, 404)
+
+        response = reviewer.get(review)
+        self.assertContains(response, notes)
+        self.assertContains(response, reverse("asset", args=["design", project.mural_design_id]))
+        self.assertRedirects(reviewer.post(review, {"status": "approved"}), queue)
+        self.assertContains(Client().get(home), project.title)
+        self.assertContains(self.client.get(reverse("mine")), "Опубликован")
+
+        response = reviewer.get(history, {
+            "title": "Мурал", "moderator": "revision-moderator",
+            "status": "revision", "date": timezone.localdate().isoformat(),
+        })
+        self.assertEqual([decision.status for decision in response.context["page"]], [
+            Placement.Status.REVISION,
+        ])
+        self.assertContains(response, notes)
+        self.assertEqual(list(project.moderation_decisions.values_list("status", flat=True)), [
+            Placement.Status.APPROVED, Placement.Status.REVISION,
+        ])
+
+    def test_admin_defaults_to_oldest_pending_applications_and_can_switch_status(self):
+        oldest = self.create_work("Первая заявка")
+        newest = self.create_work("Вторая заявка")
+        published = self.create_work("Опубликованная работа", timezone.now())
+        rejected = self.create_work("Отклонённая работа")
+        Placement.objects.filter(pk=rejected.pk).update(status=Placement.Status.REJECTED)
+
+        moderator = get_user_model().objects.create_user(username="queue-moderator", is_staff=True)
+        moderator.user_permissions.add(Permission.objects.get(codename="moderate_placement"))
+        self.client.force_login(moderator)
+        queue = reverse("admin:placements_placement_changelist")
+
+        for status, expected in (
+            (None, [oldest, newest]),
+            ("approved", [published]),
+            ("rejected", [rejected]),
+            ("all", [rejected, published, newest, oldest]),
+        ):
+            with self.subTest(status=status):
+                response = self.client.get(queue, {"moderation_status": status} if status else {})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(list(response.context["cl"].result_list), expected)
 
     def test_search_matches_cyrillic_and_only_shows_published_cards(self):
         self.client.post(reverse("create"), self.payload())

@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% load static tz %}
+{% block title %}Ограничения {{ account.username }} · Muralium{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/restrictions.css' %}">{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'moderation_accounts' %}">← К пользователям</a>
+<header class="page-heading"><h1>Ограничения аккаунта</h1><p>{{ account.username }}</p></header>
+{% get_current_timezone as moderation_timezone %}
+<form class="panel editor-panel restriction-card" method="post" data-restriction-form data-time-zone="{{ moderation_timezone }}">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for field, expiry, active in form.restriction_rows %}
+  <div class="restriction-row" data-restriction-row>
+    <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+    <div class="restriction-choice">
+      {{ field }}
+      {{ field.errors }}
+      {% if active %}
+      <p class="restriction-caption" data-restriction-saved>{% if expiry %}До {{ expiry|date:"j E Y, H:i" }}{% else %}Действует бессрочно{% endif %}</p>
+      {% endif %}
+      <p class="restriction-caption" role="status" data-restriction-preview></p>
+    </div>
+  </div>
+  {% endfor %}
+  <div class="restriction-actions">
+    <button class="button lime" type="submit">Сохранить</button>
+    <button class="button outline" type="submit" name="action" value="clear">Снять все ограничения</button>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}<script defer src="{% static 'js/restriction_presets.js' %}"></script>{% endblock %}

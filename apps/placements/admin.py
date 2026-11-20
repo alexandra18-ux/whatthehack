@@ -1,40 +1,59 @@
-from django import forms
 from django.contrib import admin
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.html import format_html
 
+from .moderation import ModerationForm, prepare_decision, record_decision
 from .models import Placement, can_moderate
 
 admin.site.site_header = "Muralium · управление"
 
 
-class ModerationForm(forms.ModelForm):
-    class Meta:
-        model = Placement
-        fields = ["status", "rejection_reason"]
+class ModerationStatusFilter(admin.SimpleListFilter):
+    title = "Статус"
+    parameter_name = "moderation_status"
 
-    def clean(self):
-        data = super().clean()
-        if data.get("status") == Placement.Status.REJECTED and not data.get("rejection_reason"):
-            self.add_error("rejection_reason", "Укажите причину отклонения.")
-        return data
+    def lookups(self, request, model_admin):
+        return [
+            (Placement.Status.APPROVED, Placement.Status.APPROVED.label),
+            (Placement.Status.REJECTED, Placement.Status.REJECTED.label),
+            (Placement.Status.REVISION, Placement.Status.REVISION.label),
+            ("all", "Все заявки"),
+        ]
+
+    def choices(self, changelist):
+        pending, *other_choices = super().choices(changelist)
+        yield {**pending, "display": Placement.Status.PENDING.label}
+        yield from other_choices
+
+    def queryset(self, request, queryset):
+        status = self.value()
+        if status == "all":
+            return queryset
+        if status not in Placement.Status.values:
+            status = Placement.Status.PENDING
+        return queryset.filter(status=status)
 
 
 @admin.register(Placement)
 class PlacementAdmin(admin.ModelAdmin):
     form = ModerationForm
     list_display = ["title", "building", "author", "status", "created_at"]
-    list_filter = ["status"]
+    list_filter = [ModerationStatusFilter]
     search_fields = ["title", "building__address", "author__username"]
     list_select_related = ["building", "author"]
     fields = [
         "title", "description", "building", "author", "materials",
-        "status", "rejection_reason", "created_at", "published_at",
+        "status", "rejection_reason", "revision_notes", "created_at", "published_at",
     ]
     readonly_fields = [
         "title", "description", "building", "author", "materials", "created_at", "published_at",
     ]
+
+    def get_ordering(self, request):
+        status = request.GET.get(ModerationStatusFilter.parameter_name)
+        if status in {None, Placement.Status.PENDING}:
+            return ("created_at", "pk")
+        return super().get_ordering(request)
 
     @admin.display(description="Изображения")
     def materials(self, project):
@@ -63,10 +82,8 @@ class PlacementAdmin(admin.ModelAdmin):
         return False
 
     def save_model(self, request, obj, form, change):
-        if obj.status == Placement.Status.APPROVED:
-            obj.published_at = obj.published_at or timezone.now()
-        else:
-            obj.published_at = None
-        if obj.status != Placement.Status.REJECTED:
-            obj.rejection_reason = ""
+        previous = Placement.objects.select_for_update().get(pk=obj.pk)
+        prepare_decision(obj)
         super().save_model(request, obj, form, change)
+        if any(getattr(obj, field) != getattr(previous, field) for field in ModerationForm.Meta.fields):
+            record_decision(obj, request.user)

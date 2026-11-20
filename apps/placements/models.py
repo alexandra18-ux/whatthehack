@@ -8,6 +8,7 @@ class Placement(models.Model):
         PENDING = "pending", "На модерации"
         APPROVED = "approved", "Опубликован"
         REJECTED = "rejected", "Отклонён"
+        REVISION = "revision", "На доработке"
 
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     building = models.ForeignKey("buildings.Building", on_delete=models.PROTECT)
@@ -19,6 +20,7 @@ class Placement(models.Model):
     result_image = models.ImageField(upload_to="results/")
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
     rejection_reason = models.TextField("Причина отклонения", blank=True)
+    revision_notes = models.TextField("Что нужно исправить", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     published_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
@@ -28,6 +30,31 @@ class Placement(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class ModerationDecision(models.Model):
+    placement = models.ForeignKey(Placement, on_delete=models.CASCADE, related_name="moderation_decisions")
+    moderator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    moderator_username = models.CharField(max_length=150)
+    status = models.CharField(max_length=10, choices=Placement.Status.choices)
+    rejection_reason = models.TextField(blank=True)
+    revision_notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+
+
+class CommentDeletion(models.Model):
+    placement = models.ForeignKey(Placement, on_delete=models.SET_NULL, null=True)
+    placement_title = models.CharField(max_length=200)
+    author_username = models.CharField(max_length=150)
+    moderator_username = models.CharField(max_length=150)
+    text = models.CharField(max_length=800)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
 
 
 class Rating(models.Model):
