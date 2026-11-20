@@ -1,0 +1,23 @@
+{% firstof profile.nickname profile_user.username as account_name %}
+<header class="panel account-identity">
+  {% if profile.avatar %}
+  <img class="profile-avatar" src="{% url 'avatar' profile_user.pk %}" alt="">
+  {% else %}
+  <span class="profile-avatar avatar-placeholder" aria-hidden="true">{{ account_name|first|upper }}</span>
+  {% endif %}
+  <div class="account-identity-copy">
+    <h1>{{ account_name }}</h1>
+    {% if profile.nickname and profile.nickname != profile_user.username %}<p class="account-handle">@{{ profile_user.username }}</p>{% endif %}
+    <div class="account-rating">
+      <span aria-hidden="true">★</span>
+      <div>
+        <p><strong>Рейтинг автора</strong></p>
+        {% if profile_rating.rated_works %}
+        <p><strong>{{ profile_rating.average|floatformat:1 }} из 5</strong> · Работ с оценками: {{ profile_rating.rated_works }}</p>
+        {% else %}
+        <p>У работ пока нет оценок</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</header>

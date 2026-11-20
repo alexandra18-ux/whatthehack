@@ -1,0 +1,48 @@
+<header class="account-section-heading"><h2>Уведомления</h2></header>
+<section class="panel account-text-card" aria-labelledby="account-restrictions">
+  <h3 id="account-restrictions">Ограничения аккаунта</h3>
+  {% with limits=user.restrictions %}
+  {% if limits.comments_block_active or limits.publications_block_active %}
+  <ul>
+    {% if limits.comments_block_active %}
+    <li>Запрет на комментарии · {% if limits.comments_blocked_until %}до {{ limits.comments_blocked_until|date:"j E Y, H:i" }}{% else %}бессрочно{% endif %}</li>
+    {% endif %}
+    {% if limits.publications_block_active %}
+    <li>Запрет на отправку работ · {% if limits.publications_blocked_until %}до {{ limits.publications_blocked_until|date:"j E Y, H:i" }}{% else %}бессрочно{% endif %}</li>
+    {% endif %}
+  </ul>
+  {% else %}
+  <p>Действующих ограничений нет.</p>
+  {% endif %}
+  {% endwith %}
+</section>
+<section class="account-notifications" aria-labelledby="moderation-notifications">
+  <header class="account-section-heading"><h3 id="moderation-notifications">Решения по работам</h3></header>
+  <ul class="comment-list">
+    {% for decision in notifications %}
+    <li class="panel account-text-card">
+      {% if decision.status == "deleted" %}
+      <div class="comment-header">
+        <strong>{{ decision.get_status_display }}</strong>
+        <time datetime="{{ decision.created_at|date:'c' }}">{{ decision.created_at|date:"j E Y, H:i" }}</time>
+      </div>
+      <p><strong>Название работы:</strong> {{ decision.placement_title }}</p>
+      <p><strong>Причина удаления:</strong> {{ decision.deletion_reason|linebreaksbr }}</p>
+      {% else %}
+      <div class="comment-header">
+        {% if decision.placement_id %}<a href="{% url 'placement' decision.placement_id %}">{{ decision.placement.title }}</a>{% else %}<strong>{{ decision.placement_title }}</strong>{% endif %}
+        <time datetime="{{ decision.created_at|date:'c' }}">{{ decision.created_at|date:"j E Y, H:i" }}</time>
+      </div>
+      <p><strong>{{ decision.get_status_display }}</strong></p>
+      {% if decision.rejection_reason %}<p>{{ decision.rejection_reason|linebreaksbr }}</p>{% endif %}
+      {% if decision.revision_notes %}<p>{{ decision.revision_notes|linebreaksbr }}</p>{% endif %}
+      {% if decision.status == "revision" and decision.placement.status == "revision" and not user.restrictions.publications_block_active %}
+      <a class="back-link" href="{% url 'revise' decision.placement_id %}">Доработать заявку</a>
+      {% endif %}
+      {% endif %}
+    </li>
+    {% empty %}
+    <li class="empty">Решений по работам пока нет.</li>
+    {% endfor %}
+  </ul>
+</section>

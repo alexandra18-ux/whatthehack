@@ -1,15 +1,46 @@
 <div class="project-grid">
   {% for project in projects %}
-  <article class="project-card">
+  <article class="project-card{% if account_cards %} account-project-card{% endif %}">
     <a href="{% url 'placement' project.pk %}">
       <img loading="lazy" src="{% url 'project_image' project.pk 'result' %}" alt="">
       <div class="card-body">
-        <p class="card-location">{{ project.building.address }}</p>
+        <p class="card-location{% if account_cards %} account-card-location{% endif %}">
+          {% if account_cards %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>{% endif %}
+          <span>{{ project.building.address }}</span>
+        </p>
+        {% if account_cards %}
+        <h3 class="account-card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M12 6v14m-4 0h8M4 6v3m16-3v3"/></svg>
+          <span>{{ project.title }}</span>
+        </h3>
+        <p class="account-card-description">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          <span>{{ project.description|truncatechars:105 }}</span>
+        </p>
+        {% else %}
         <h3>{{ project.title }}</h3>
         <p>{{ project.description|truncatechars:105 }}</p>
+        {% endif %}
+        {% if account_cards %}
+        <p class="card-meta account-card-meta">
+          <span class="account-card-status account-card-status--{{ project.status }}">
+            <span aria-hidden="true">{% if project.status == 'approved' %}✓{% elif project.status == 'rejected' %}×{% elif project.status == 'revision' %}↺{% else %}◷{% endif %}</span>
+            {{ project.get_status_display }}
+          </span>
+          {% with date=project.published_at|default:project.created_at %}
+          <time datetime="{{ date|date:'c' }}" title="{% if project.published_at %}Дата публикации{% else %}Дата создания{% endif %}">{{ date|date:"j M Y" }}</time>
+          {% endwith %}
+        </p>
+        {% else %}
         <p class="card-meta">{{ project.author.profile.nickname|default:project.author.username }} · {% if project.published_at %}{{ project.published_at|date:"j M Y" }}{% else %}{{ project.get_status_display }}{% endif %}</p>
+        {% endif %}
       </div>
     </a>
+    {% if may_delete_other_works or allow_delete and user.pk == project.author_id %}
+    <a class="account-card-delete" href="{% url 'delete_placement' project.pk %}?from={% if may_delete_other_works %}profile{% else %}wall{% endif %}" aria-label="Удалить работу «{{ project.title }}»" title="Удалить работу">
+      {% include "account/trash_icon.html" %}
+    </a>
+    {% endif %}
     {% include "panorama_credit.html" with panorama=project.facade_photo.panorama %}
   </article>
   {% empty %}

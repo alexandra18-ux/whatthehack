@@ -1,0 +1,17 @@
+<section class="panel account-settings" aria-labelledby="settings-title">
+  <h2 id="settings-title">Настройки профиля</h2>
+  <form method="post" action="{% url 'mine' %}?tab=settings" enctype="multipart/form-data" class="account-settings-form">
+    {% csrf_token %}
+    <div class="account-settings-fields">
+      {{ form.non_field_errors }}
+      {{ form.nickname.as_field_group }}
+      <div class="account-avatar-upload">
+        {{ form.avatar.as_field_group }}
+        <p class="account-handle">Выберите JPG или PNG. Новый аватар заменит текущий после сохранения.</p>
+      </div>
+    </div>
+    <div class="account-settings-actions">
+      <button class="button lime" type="submit">Сохранить профиль</button>
+    </div>
+  </form>
+</section>
