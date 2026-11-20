@@ -34,13 +34,10 @@
           <button class="button outline compact feed-arrow" type="button" disabled aria-label="Следующего граффити нет">↓</button>
           {% endif %}
           <a class="button outline compact feed-details" href="{% url 'placement' project.pk %}">О работе</a>
+          <div class="feed-rating">{% include "rating.html" %}</div>
         </footer>
       </div>
       <div class="feed-sidebar">
-        <div class="feed-rating">
-          <h3>Рейтинг работы</h3>
-          {% include "rating.html" %}
-        </div>
         {% include "discussion.html" %}
       </div>
     </article>

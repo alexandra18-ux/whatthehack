@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Exists, OuterRef, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -17,8 +17,16 @@ from apps.buildings.models import Building, FacadePhoto
 from apps.murals.models import MuralDesign
 
 from .forms import CommentForm, PlacementForm, RatingForm
-from .models import Comment, Placement, Rating, can_moderate, published_placements, with_ratings
+from .models import Comment, CommentLike, Placement, Rating, can_moderate, published_placements, with_ratings
 from .services.perspective import encode_image, render_placement
+
+
+def with_comment_likes(project, viewer):
+    comments = project.comments.select_related("author__profile").annotate(like_count=Count("likes")).order_by("-created_at", "-pk")
+    if viewer.is_authenticated:
+        liked = CommentLike.objects.filter(comment_id=OuterRef("pk"), author=viewer)
+        comments = comments.annotate(viewer_liked=Exists(liked))
+    return comments
 
 
 @vary_on_headers("X-Muralium-Feed")
@@ -48,7 +56,7 @@ def home(request):
         context.update(
             previous_post=previous_post,
             next_post=next_post,
-            comments=project.comments.select_related("author__profile")[:20],
+            comments=with_comment_likes(project, request.user).order_by("-like_count", "-created_at", "-pk")[:1],
         )
 
     if request.headers.get("X-Muralium-Feed") == "1":
@@ -93,7 +101,7 @@ def visible_project(request, pk, *, include_ratings=False):
 def detail(request, pk):
     project = visible_project(request, pk, include_ratings=True)
     published = is_published(project)
-    page = Paginator(project.comments.select_related("author__profile"), 20).get_page(
+    page = Paginator(with_comment_likes(project, request.user), 20).get_page(
         request.GET.get("page"),
     ) if published else None
     return render(request, "placement.html", {
@@ -132,6 +140,20 @@ def comment(request, pk):
     else:
         messages.error(request, "Введите комментарий длиной от 1 до 800 символов.")
     return discussion_redirect(request, project, "comments")
+
+
+@login_required
+@require_POST
+def like_comment(request, pk):
+    entry = get_object_or_404(
+        Comment.objects.select_related("placement"), pk=pk, placement__in=published_placements(),
+    )
+    likes = CommentLike.objects.filter(comment=entry, author=request.user)
+    if request.POST.get("liked") == "1":
+        likes.get_or_create(comment=entry, author=request.user)
+    else:
+        likes.delete()
+    return discussion_redirect(request, entry.placement, "comments")
 
 
 def image_response(image):

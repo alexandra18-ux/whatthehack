@@ -51,8 +51,7 @@ class PlacementForm(forms.Form):
             corners = json.loads(self.cleaned_data["corners"])
         except (ValueError, RecursionError) as error:
             raise ValidationError("Не удалось прочитать координаты углов.") from error
-        validate_corners(corners)
-        return corners
+        return [{"x": float(x), "y": float(y)} for x, y in validate_corners(corners)]
 
     def clean(self):
         data = super().clean()

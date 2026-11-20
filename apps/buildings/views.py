@@ -1,10 +1,12 @@
+from decimal import Decimal, InvalidOperation
+
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods
 
-from .addresses import CITY_FILTER, get_address, in_city
+from .addresses import AddressSearchUnavailable, CITY_FILTER, address_at, get_address, in_city
 from .models import Building
 
 
@@ -29,6 +31,24 @@ def buildings_api(request):
     return JsonResponse({"buildings": [
         building_data(item) for item in city_buildings()
     ]})
+
+
+@require_GET
+def map_address(request):
+    try:
+        latitude = Decimal(request.GET.get("lat", ""))
+        longitude = Decimal(request.GET.get("lon", ""))
+    except InvalidOperation:
+        return JsonResponse({"error": "Укажите точку на карте."}, status=400)
+    if not (latitude.is_finite() and longitude.is_finite() and in_city(latitude, longitude)):
+        return JsonResponse({"error": "Выберите точку в границах Саратова."}, status=400)
+    try:
+        address = address_at(latitude, longitude)
+    except AddressSearchUnavailable:
+        return JsonResponse({"error": "Поиск адреса временно недоступен. Попробуйте ещё раз."}, status=503)
+    if address is None:
+        return JsonResponse({"error": "Адрес рядом с точкой не найден. Нажмите на здание."}, status=404)
+    return JsonResponse({"address": address.label, "ticket": address.ticket})
 
 
 def catalog(request, pk, kind):
