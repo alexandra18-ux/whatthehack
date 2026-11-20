@@ -1,39 +1,50 @@
 <div class="graffiti-feed" data-feed data-post="{% if project %}{{ project.pk }}{% endif %}">
 {% if project %}
-  <article class="feed-post" data-feed-swipe id="project-{{ project.pk }}" aria-labelledby="feed-title">
-    <div class="feed-main">
-      <div class="feed-cover" data-swipe-area>
-        <a href="{% url 'placement' project.pk %}" draggable="false"><img src="{% url 'project_image' project.pk 'result' %}" alt="{{ project.title }}" draggable="false"></a>
-        <div class="feed-controls feed-controls-top">
+  <p class="feed-instructions">Перелистывайте работы свайпом, тачпадом или стрелками.</p>
+  <div class="feed-viewport">
+    <article class="feed-post" data-feed-swipe id="project-{{ project.pk }}" aria-labelledby="feed-title">
+      <div class="feed-main">
+        <header class="feed-byline">
+          <a class="feed-author" href="{% url 'profile' project.author_id %}">
+            {% if project.author.profile.avatar %}
+            <img src="{% url 'avatar' project.author_id %}" alt="">
+            {% else %}
+            <span class="avatar-placeholder" aria-hidden="true">{{ project.author.profile.nickname|default:project.author.username|first|upper }}</span>
+            {% endif %}
+            {{ project.author.profile.nickname|default:project.author.username }}
+          </a>
           {% if previous_post %}
           <a class="button outline compact feed-arrow" data-feed-direction="previous" href="{% url 'home' %}?post={{ previous_post }}#projects" aria-label="Предыдущее граффити">↑</a>
           {% else %}
-          <span class="button outline compact feed-arrow" aria-disabled="true" aria-label="Предыдущего граффити нет">↑</span>
+          <button class="button outline compact feed-arrow" type="button" disabled aria-label="Предыдущего граффити нет">↑</button>
           {% endif %}
+          <time datetime="{{ project.published_at|date:'c' }}">{{ project.published_at|date:"j E Y" }}</time>
+        </header>
+        <div class="feed-cover" data-swipe-area>
+          <a href="{% url 'placement' project.pk %}" draggable="false"><img src="{% url 'project_image' project.pk 'result' %}" alt="{{ project.title }}" draggable="false"></a>
         </div>
-        <div class="feed-controls feed-controls-bottom">
+        <footer class="feed-caption">
+          <div class="feed-title-group">
+            <p class="card-location">{{ project.building.address }}</p>
+            <h3 id="feed-title" tabindex="-1"><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
+          </div>
           {% if next_post %}
           <a class="button outline compact feed-arrow" data-feed-direction="next" href="{% url 'home' %}?post={{ next_post }}#projects" aria-label="Следующее граффити">↓</a>
           {% else %}
-          <span class="button outline compact feed-arrow" aria-disabled="true" aria-label="Следующего граффити нет">↓</span>
+          <button class="button outline compact feed-arrow" type="button" disabled aria-label="Следующего граффити нет">↓</button>
           {% endif %}
+          <a class="button outline compact feed-details" href="{% url 'placement' project.pk %}">О работе</a>
+        </footer>
+      </div>
+      <div class="feed-sidebar">
+        <div class="feed-rating">
+          <h3>Рейтинг работы</h3>
+          {% include "rating.html" %}
         </div>
+        {% include "discussion.html" %}
       </div>
-      <div class="feed-copy">
-        <p class="card-location">{{ project.building.address }}</p>
-        <h3 id="feed-title" tabindex="-1"><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
-        <p>{{ project.description }}</p>
-        <p class="card-meta"><a href="{% url 'profile' project.author_id %}">{{ project.author.profile.nickname|default:project.author.username }}</a> · {{ project.published_at|date:"j E Y" }}</p>
-      </div>
-    </div>
-    <div class="feed-sidebar">
-      <div class="feed-rating">
-        <h3>Рейтинг работы</h3>
-        {% include "rating.html" %}
-      </div>
-      {% include "discussion.html" %}
-    </div>
-  </article>
+    </article>
+  </div>
 {% else %}
 <p class="empty">Здесь пока нет граффити. Выберите здание, чтобы создать первый проект.</p>
 {% endif %}

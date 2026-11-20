@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path
+from django.views.generic import TemplateView
 
 from apps.buildings import views as buildings
 from apps.maps.views import maps
@@ -9,6 +10,7 @@ from apps.users import views as users
 
 urlpatterns = [
     path("", placements.home, name="home"),
+    path("about/", TemplateView.as_view(template_name="about.html"), name="about"),
     path("admin/", admin.site.urls),
     path("accounts/register/", users.register, name="register"),
     path("accounts/login/", auth_views.LoginView.as_view(), name="login"),

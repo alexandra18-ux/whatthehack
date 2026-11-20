@@ -15,6 +15,7 @@
     <nav aria-label="Основная навигация">
       <a href="{% url 'home' %}#projects"{% if request.resolver_match.url_name == "home" %} aria-current="page"{% endif %}>Проекты</a>
       <a href="{% url 'map' %}"{% if request.resolver_match.url_name == "map" %} aria-current="page"{% endif %}>Карта</a>
+      <a href="{% url 'about' %}"{% if request.resolver_match.url_name == "about" %} aria-current="page"{% endif %}>О проекте</a>
       {% if user.is_authenticated %}<a href="{% url 'mine' %}"{% if request.resolver_match.url_name == "mine" %} aria-current="page"{% endif %}>Личный кабинет</a>{% endif %}
     </nav>
     {% if user.is_authenticated %}

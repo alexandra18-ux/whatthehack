@@ -13,11 +13,66 @@
     const addressPoint = (button) => [Number(button.dataset.latitude), Number(button.dataset.longitude)];
     const firstAddress = addressButtons[0];
     const map = leaflet.map(element, {
-        scrollWheelZoom: false, minZoom: 12, maxBounds: bounds, maxBoundsViscosity: 1,
+        scrollWheelZoom: true, touchZoom: true,
+        minZoom: 12, maxZoom: 19, zoomSnap: 0.25,
+        maxBounds: bounds, maxBoundsViscosity: 1,
         zoomControl: false,
     }).setView(firstAddress ? addressPoint(firstAddress) : [51.5335, 46.0343], firstAddress ? 17 : 13);
     leaflet.control.zoom({ zoomInTitle: "Приблизить", zoomOutTitle: "Отдалить" }).addTo(map);
     map.attributionControl.setPrefix(false);
+
+    function isOverMap(event) {
+        if (Number.isFinite(event.clientX) && Number.isFinite(event.clientY)) {
+            return element.contains(document.elementFromPoint(event.clientX, event.clientY));
+        }
+        return event.composedPath().includes(element);
+    }
+
+    function zoomAt(point, zoom) {
+        map.setZoomAround(point, zoom, { animate: false });
+    }
+
+    const captureGesture = { capture: true, passive: false };
+    let pinchDelta = 0;
+    let lastPinch = -Infinity;
+    let nativePinch;
+    // Window capture sees browser zoom events even when their target isn't the map.
+    window.addEventListener("wheel", (event) => {
+        if ((!event.ctrlKey && !event.metaKey) || !isOverMap(event)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (nativePinch) return;
+        const now = performance.now();
+        if (now - lastPinch > 160) pinchDelta = 0;
+        lastPinch = now;
+
+        const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? element.clientHeight : 1;
+        pinchDelta -= event.deltaY * unit;
+        const steps = Math.max(-4, Math.min(4, Math.trunc(pinchDelta / 15)));
+        if (!steps) return;
+        pinchDelta %= 15;
+        zoomAt(map.mouseEventToContainerPoint(event), map.getZoom() + steps * 0.25);
+    }, captureGesture);
+
+    // WebKit can send desktop pinches as gesture events instead of wheel events.
+    window.addEventListener("gesturestart", (event) => {
+        if (!isOverMap(event) || matchMedia("(pointer: coarse)").matches) return;
+        event.preventDefault();
+        nativePinch = { zoom: map.getZoom(), point: map.mouseEventToContainerPoint(event) };
+    }, captureGesture);
+    window.addEventListener("gesturechange", (event) => {
+        if (!nativePinch) return;
+        event.preventDefault();
+        if (Number.isFinite(event.scale) && event.scale > 0) {
+            zoomAt(nativePinch.point, nativePinch.zoom + Math.log2(event.scale));
+        }
+    }, captureGesture);
+    window.addEventListener("gestureend", (event) => {
+        if (!nativePinch) return;
+        event.preventDefault();
+        nativePinch = null;
+    }, captureGesture);
+
     let tileErrors = false;
     let incompleteData = false;
 
