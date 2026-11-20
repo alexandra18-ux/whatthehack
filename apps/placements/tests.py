@@ -232,6 +232,51 @@ class PlacementWorkflowTests(TestCase):
         self.client.post(like, {"liked": "0"})
         self.assertContains(self.client.get(feed), newest.text)
 
+    def test_async_ratings_return_updated_fragment_without_redirect(self):
+        project = self.create_work("Оцениваемая работа", timezone.now())
+        url = reverse("rate", args=[project.pk])
+        headers = {"X-Muralium-Async": "1"}
+
+        response = self.client.post(url, {"score": "3", "source": "feed"}, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Rating.objects.get(placement=project).score, 3)
+        self.assertEqual(response.json()["html"].count("★"), 3)
+        self.assertIn("3,0 из 5", response.json()["html"])
+        self.assertIn('aria-pressed="true"', response.json()["html"])
+
+        response = self.client.post(url, {"score": "5"}, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Rating.objects.get(placement=project).score, 5)
+        self.assertEqual(response.json()["html"].count("★"), 5)
+        self.assertEqual(self.client.post(url, {"score": "0"}, headers=headers).status_code, 400)
+        self.assertEqual(Rating.objects.get(placement=project).score, 5)
+
+    def test_async_comments_and_likes_update_discussion_without_redirect(self):
+        project = self.create_work("Обсуждаемая работа", timezone.now())
+        comment_url = reverse("comment", args=[project.pk])
+        headers = {"X-Muralium-Async": "1"}
+
+        response = self.client.post(comment_url, {"text": "Без перезагрузки"}, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Без перезагрузки", response.json()["html"])
+        self.assertEqual(Comment.objects.filter(placement=project).count(), 1)
+        self.assertEqual(self.client.post(comment_url, {"text": "   "}, headers=headers).status_code, 400)
+
+        entry = Comment.objects.get(placement=project)
+        like_url = reverse("like_comment", args=[entry.pk])
+        response = self.client.post(
+            like_url, {"liked": "1", "source": "feed"}, headers=headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('aria-pressed="true"', response.json()["html"])
+        self.assertIn("♥", response.json()["html"])
+        self.assertEqual(CommentLike.objects.filter(comment=entry).count(), 1)
+
+        response = self.client.post(like_url, {"liked": "0"}, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('aria-pressed="false"', response.json()["html"])
+        self.assertFalse(CommentLike.objects.filter(comment=entry).exists())
+
     def test_author_rating_weights_each_rated_public_work_equally(self):
         published_at = timezone.now()
         first = self.create_work("Первая оценённая работа", published_at)
