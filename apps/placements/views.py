@@ -9,6 +9,7 @@ from django.db import transaction
 from django.db.models import Count, Exists, OuterRef, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.cache import add_never_cache_headers
 from django.views.decorators.cache import never_cache
@@ -121,6 +122,36 @@ def discussion_redirect(request, project, section):
     return redirect(f"{reverse('placement', args=[project.pk])}#{section}")
 
 
+def asynchronous_feedback(request):
+    return request.headers.get("X-Muralium-Async") == "1"
+
+
+def feedback_response(request, project, section, *, new_comment=False):
+    if not asynchronous_feedback(request):
+        return discussion_redirect(request, project, section)
+
+    in_feed = request.POST.get("source") == "feed"
+    if section == "rating":
+        updated = with_ratings(Placement.objects.filter(pk=project.pk), request.user).get()
+        html = render_to_string(
+            "rating.html", {"project": updated, "in_feed": in_feed}, request=request,
+        )
+    else:
+        page = None
+        if in_feed:
+            comments = with_comment_likes(project, request.user).order_by(
+                "-like_count", "-created_at", "-pk",
+            )[:1]
+        else:
+            page_number = "1" if new_comment else request.POST.get("page", "1")
+            page = Paginator(with_comment_likes(project, request.user), 20).get_page(page_number)
+            comments = page.object_list
+        html = render_to_string("discussion.html", {
+            "project": project, "in_feed": in_feed, "comments": comments, "page": page,
+        }, request=request)
+    return JsonResponse({"html": html})
+
+
 @login_required
 @require_POST
 def rate(request, pk):
@@ -131,8 +162,10 @@ def rate(request, pk):
             placement=project, author=request.user, defaults={"score": form.cleaned_data["score"]},
         )
     else:
+        if asynchronous_feedback(request):
+            return JsonResponse({"error": "Выберите оценку от 1 до 5."}, status=400)
         messages.error(request, "Выберите оценку от 1 до 5.")
-    return discussion_redirect(request, project, "rating")
+    return feedback_response(request, project, "rating")
 
 
 @login_required
@@ -140,20 +173,27 @@ def rate(request, pk):
 def comment(request, pk):
     project = get_object_or_404(published_placements(), pk=pk)
     form = CommentForm(request.POST)
+    is_async = asynchronous_feedback(request)
     with transaction.atomic():
         author = get_user_model().objects.select_for_update().get(pk=request.user.pk)
         restriction = getattr(author, "restrictions", None)
         if restriction and (restriction.ban_active or restriction.comments_block_active):
-            messages.error(request, "Вам запрещено оставлять комментарии.")
+            error = "Вам запрещено оставлять комментарии."
+            if is_async:
+                return JsonResponse({"error": error}, status=403)
+            messages.error(request, error)
         elif form.is_valid():
             Comment.objects.create(placement=project, author=author, text=form.cleaned_data["text"])
         else:
+            error = form.errors["text"][0]
+            if is_async:
+                return JsonResponse({"error": error}, status=400)
             request.session["comment_draft"] = {
                 "project": project.pk,
                 "text": request.POST.get("text", "")[:800],
-                "error": form.errors["text"][0],
+                "error": error,
             }
-    return discussion_redirect(request, project, "comments")
+    return feedback_response(request, project, "comments", new_comment=True)
 
 
 def take_comment_draft(request, project):
@@ -170,11 +210,14 @@ def like_comment(request, pk):
         Comment.objects.select_related("placement"), pk=pk, placement__in=published_placements(),
     )
     likes = CommentLike.objects.filter(comment=entry, author=request.user)
-    if request.POST.get("liked") == "1":
+    liked = request.POST.get("liked")
+    if asynchronous_feedback(request) and liked not in ("0", "1"):
+        return JsonResponse({"error": "Не удалось изменить лайк."}, status=400)
+    if liked == "1":
         likes.get_or_create(comment=entry, author=request.user)
     else:
         likes.delete()
-    return discussion_redirect(request, entry.placement, "comments")
+    return feedback_response(request, entry.placement, "comments")
 
 
 def image_response(image):

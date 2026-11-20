@@ -2,7 +2,7 @@
   <h3>Комментарии</h3>
   <ul class="comment-list"{% if in_feed %} tabindex="0" aria-label="Комментарии к работе {{ project.title }}"{% endif %}>
     {% for entry in comments %}
-    <li>
+    <li data-comment-id="{{ entry.pk }}">
       <div class="comment-header">
         <a href="{% url 'profile' entry.author_id %}">{{ entry.author.profile.nickname|default:entry.author.username }}</a>
         <time datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:"j E, H:i" }}</time>
