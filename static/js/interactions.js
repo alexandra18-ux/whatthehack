@@ -38,7 +38,8 @@
 
         container.querySelector(".interaction-error")?.remove();
         container.setAttribute("aria-busy", "true");
-        const buttons = container.querySelectorAll('form button[type="submit"], form button:not([type])');
+        const buttons = Array.from(container.querySelectorAll('form button[type="submit"], form button:not([type])'))
+            .filter((button) => button.closest(".rating-widget, .discussion") === container);
         buttons.forEach((button) => { button.disabled = true; });
 
         try {
@@ -77,6 +78,8 @@
                 updatedDraft.setSelectionRange(draft.selectionStart, draft.selectionEnd);
             }
 
+            const rating = !isRating && container.querySelector(".rating-widget");
+            if (rating) updated.querySelector(".rating-widget")?.replaceWith(rating);
             container.replaceWith(updated);
             if (isRating && submitter) {
                 const selected = Array.from(updated.querySelectorAll('button[name="score"]'))

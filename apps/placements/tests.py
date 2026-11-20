@@ -683,7 +683,16 @@ class PlacementWorkflowTests(TestCase):
         self.assertEqual(Comment.objects.filter(placement=project).count(), 1)
         self.assertEqual(self.client.post(comment_url, {"text": "   "}, headers=headers).status_code, 400)
 
-        entry = Comment.objects.get(placement=project)
+        feed = self.client.get(reverse("home"), {"post": project.pk}).content.decode()
+        response = self.client.post(
+            comment_url, {"text": "Из ленты", "source": "feed"}, headers=headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        for html in (feed, response.json()["html"]):
+            self.assertLess(html.index("Посмотреть все комментарии"), html.index('class="rating-form"'))
+            self.assertLess(html.index('class="rating-form"'), html.index("Написать комментарий"))
+
+        entry = Comment.objects.get(placement=project, text="Без перезагрузки")
         like_url = reverse("like_comment", args=[entry.pk])
         response = self.client.post(
             like_url, {"liked": "1", "source": "feed"}, headers=headers,

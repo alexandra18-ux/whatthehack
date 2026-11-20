@@ -15,6 +15,13 @@
           </a>
           <time datetime="{{ project.published_at|date:'c' }}">{{ project.published_at|date:"j E Y" }}</time>
         </header>
+        <div class="feed-caption">
+          <div class="feed-title-group">
+            <p class="card-location">{{ project.building.address }}</p>
+            <h3 id="feed-title" tabindex="-1"><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
+          </div>
+          <a class="button outline compact feed-details" href="{% url 'placement' project.pk %}">О работе</a>
+        </div>
         {% if previous_post %}
         <a class="button outline feed-arrow" data-feed-direction="previous" href="{% url 'home' %}?post={{ previous_post }}#projects" aria-label="Предыдущее граффити">↑</a>
         {% else %}
@@ -28,14 +35,6 @@
         {% else %}
         <button class="button outline feed-arrow" type="button" disabled aria-label="Следующего граффити нет">↓</button>
         {% endif %}
-        <footer class="feed-caption">
-          <div class="feed-title-group">
-            <p class="card-location">{{ project.building.address }}</p>
-            <h3 id="feed-title" tabindex="-1"><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
-          </div>
-          <a class="button outline compact feed-details" href="{% url 'placement' project.pk %}">О работе</a>
-          <div class="feed-rating">{% include "rating.html" %}</div>
-        </footer>
       </div>
       <div class="feed-sidebar">
         {% include "discussion.html" %}

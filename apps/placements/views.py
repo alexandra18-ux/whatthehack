@@ -163,6 +163,7 @@ def feedback_response(request, project, section, *, new_comment=False):
     else:
         page = None
         if in_feed:
+            project = with_ratings(Placement.objects.filter(pk=project.pk), request.user).get()
             comments = with_comment_likes(project, request.user).order_by(
                 "-like_count", "-created_at", "-pk",
             )[:1]
