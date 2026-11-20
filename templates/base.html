@@ -4,7 +4,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f6f6ef">
-  {% if yandex_panorama_key %}<meta name="referrer" content="strict-origin-when-cross-origin">{% endif %}
   <title>{% block title %}Murrralium — город как холст{% endblock %}</title>
   <link rel="icon" href="{% static 'logo.svg' %}" type="image/svg+xml">
   <script src="{% static 'js/theme.js' %}"></script>
@@ -66,9 +65,7 @@
 <footer class="site-footer">
   <div class="container footer-inner"><span class="brand">Murrralium</span><span>Виртуальные муралы Саратова</span></div>
 </footer>
-{% if yandex_panorama_key %}{% include "street_walk_dialog.html" %}{% endif %}
 <script defer src="{% static 'js/interactions.js' %}"></script>
-<script defer src="{% static 'js/street_walk.js' %}"></script>
 {% if user.is_authenticated %}<script defer src="{% static 'js/account.js' %}"></script>{% endif %}
 {% block scripts %}{% endblock %}
 </body>

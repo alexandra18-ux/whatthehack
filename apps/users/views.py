@@ -12,7 +12,7 @@ from apps.placements.models import Comment, ModerationDecision, Placement, autho
 from apps.placements.views import image_response
 
 from .auth import can_manage_restrictions
-from .forms import ProfileForm, RegistrationForm
+from .forms import ProfileEmailForm, ProfileForm, RegistrationForm
 from .models import Profile
 
 
@@ -56,6 +56,7 @@ def account(request):
             messages.success(request, "Профиль обновлён.")
             return redirect("mine")
         context["form"] = form
+        context["email_form"] = ProfileEmailForm(initial={"email": profile.pending_email if profile else ""})
     elif tab == "notifications":
         context["notifications"] = ModerationDecision.objects.filter(
             Q(placement__author=request.user, status__in=[

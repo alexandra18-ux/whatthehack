@@ -9,15 +9,23 @@
     }
 
     const coordinates = ({ latitude, longitude }) => [latitude, longitude];
-    const bounds = JSON.parse(document.querySelector("#saratov-map-bounds").textContent);
+    const bounds = leaflet.latLngBounds(JSON.parse(document.querySelector("#region-map-bounds").textContent));
     const addressPoint = (button) => [Number(button.dataset.latitude), Number(button.dataset.longitude)];
     const firstAddress = addressButtons[0];
     const map = leaflet.map(element, {
         scrollWheelZoom: true, touchZoom: true,
-        minZoom: 12, maxZoom: 19, zoomSnap: 0.25,
+        minZoom: 4, maxZoom: 19, zoomSnap: 0.25,
         maxBounds: bounds, maxBoundsViscosity: 1,
         zoomControl: false,
-    }).setView(firstAddress ? addressPoint(firstAddress) : [51.5335, 46.0343], firstAddress ? 17 : 13);
+    });
+    if (firstAddress) {
+        map.setView(addressPoint(firstAddress), 17);
+    } else {
+        map.fitBounds([[51.475, 45.99], [51.56, 46.155]], {
+            padding: [24, 24],
+            maxZoom: 12,
+        });
+    }
     leaflet.control.zoom({ position: "topright", zoomInTitle: "Приблизить", zoomOutTitle: "Отдалить" }).addTo(map);
     map.attributionControl.setPrefix(false);
 
@@ -92,14 +100,6 @@
         tileerror() { tileErrors = true; updateHint(); },
         load: updateHint,
     }).addTo(map);
-    const cityBoundary = JSON.parse(document.querySelector("#saratov-city-boundary").textContent);
-    const outside = [[50, 44], [50, 48], [53, 48], [53, 44]];
-    leaflet.polygon([outside, ...cityBoundary], {
-        stroke: false, fillColor: "#e6ebe0", fillOpacity: 0.88, interactive: false,
-    }).addTo(map);
-    leaflet.polyline(cityBoundary, {
-        color: "#40542b", opacity: 0.56, weight: 1.5, interactive: false,
-    }).addTo(map);
     element.classList.add("is-live");
     updateHint();
 
@@ -161,6 +161,7 @@
         popupContent.append(addressResult.content.cloneNode(true));
         const status = popupContent.querySelector("#map-address-status");
         const action = popupContent.querySelector("#map-address-action");
+        const loginLink = popupContent.querySelector("#map-address-login");
         status.textContent = "Ищем адрес…";
         const popup = leaflet.popup({ offset: [0, -6] }).setLatLng(point).setContent(popupContent).openOn(map);
         const params = new URLSearchParams({
@@ -174,15 +175,15 @@
             if (controller.signal.aborted) return;
             status.textContent = response.ok ? result.address : result.error;
             if (response.ok) {
-                const ticket = action.querySelector("[name=address_ticket]");
-                if (ticket) {
-                    ticket.value = result.ticket;
+                if (result.is_authenticated && action) {
+                    action.querySelector("[name=address_ticket]").value = result.ticket;
+                    action.hidden = false;
                 } else {
-                    const login = new URL(action.href);
+                    const login = new URL(loginLink.href);
                     login.searchParams.set("next", `${location.pathname}?${params}`);
-                    action.href = login.href;
+                    loginLink.href = login.href;
+                    loginLink.hidden = false;
                 }
-                action.hidden = false;
                 appendStreetWalk(popupContent, result.street_walk_url);
             }
         } catch (error) {
@@ -196,7 +197,7 @@
     const initialParams = new URLSearchParams(location.search);
     if (initialParams.has("lat") && initialParams.has("lon")) {
         const initialPoint = [Number(initialParams.get("lat")), Number(initialParams.get("lon"))];
-        if (leaflet.latLngBounds(bounds).contains(initialPoint)) {
+        if (bounds.contains(initialPoint)) {
             map.setView(initialPoint, 17);
             findAddress(leaflet.latLng(initialPoint));
         }
@@ -227,6 +228,26 @@
     }
 
     const buildingMarkers = new Map();
+
+    function bindProjectPreview(marker, project) {
+        const preview = document.createElement("div");
+        const image = document.createElement("img");
+        image.alt = "";
+        image.decoding = "async";
+        preview.append(image);
+
+        const title = document.createElement("span");
+        title.textContent = project.title;
+        preview.append(title);
+
+        marker.once("tooltipopen", () => { image.src = project.image; });
+        marker.bindTooltip(preview, {
+            className: "map-project-preview",
+            direction: "top",
+            offset: [0, -12],
+            sticky: true,
+        });
+    }
 
     function showBuilding(marker) {
         lookup?.abort();
@@ -262,9 +283,6 @@
             const popup = document.createElement("div");
             popup.className = "map-popup";
             appendLinks(popup, "Здания", group.buildings, "address");
-            appendLinks(popup, "Панорамы 360°", group.buildings.filter((building) => building.panorama_url).map(
-                (building) => ({ title: "Открыть панораму", url: building.panorama_url }),
-            ), "title");
             appendLinks(popup, "Опубликованные проекты", group.projects, "title");
             const title = hasProjects ? group.projects[0].address : group.buildings[0].address;
             const marker = leaflet.marker(group.point, {
@@ -275,6 +293,8 @@
                 title,
             }).addTo(map).bindPopup(popup);
             marker.getElement().setAttribute("aria-label", title);
+            const previewProject = group.projects.find((project) => !project.is_own);
+            if (previewProject) bindProjectPreview(marker, previewProject);
             for (const building of group.buildings) {
                 buildingMarkers.set(String(building.id), marker);
             }

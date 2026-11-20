@@ -7,6 +7,7 @@ from apps.buildings import views as buildings
 from apps.maps.views import maps
 from apps.placements import comment_moderation, moderation
 from apps.placements import views as placements
+from apps.users import password_recovery
 from apps.users import views as users
 
 urlpatterns = [
@@ -23,13 +24,17 @@ urlpatterns = [
     path("moderation/<int:pk>/", moderation.review, name="moderation_review"),
     path("accounts/register/", users.register, name="register"),
     path("accounts/login/", auth_views.LoginView.as_view(), name="login"),
+    path("accounts/email/", password_recovery.request_email_verification, name="request_profile_email"),
+    path("accounts/email/confirm/<str:token>/", password_recovery.verify_profile_email, name="verify_profile_email"),
+    path("accounts/password/reset/", password_recovery.AccountPasswordResetView.as_view(), name="password_reset"),
+    path("accounts/password/reset/sent/", password_recovery.AccountPasswordResetDoneView.as_view(), name="password_reset_done"),
+    path("accounts/password/reset/<uidb64>/<token>/", auth_views.PasswordResetConfirmView.as_view(), name="password_reset_confirm"),
+    path("accounts/password/reset/complete/", auth_views.PasswordResetCompleteView.as_view(), name="password_reset_complete"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("maps/", maps, name="map"),
     path("buildings/new/", buildings.add_building, name="building_add"),
     path("buildings/<int:pk>/", buildings.detail, name="building"),
     path("buildings/<int:pk>/panorama/", buildings.building_panorama, name="building_panorama"),
-    path("panoramas/<int:pk>/image/", buildings.panorama_image, name="panorama_image"),
-    path("panoramas/<int:pk>/view/", buildings.panorama_view, name="panorama_view"),
     path("placements/create/", placements.create, name="create"),
     path("placements/my/", users.account, name="mine"),
     path("people/<int:pk>/", users.public_profile, name="profile"),

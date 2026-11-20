@@ -8,6 +8,7 @@
     <input type="hidden" name="next" value="{{ next }}">
     <button class="button lime">Войти</button>
   </form>
+  <p><a class="back-link" href="{% url 'password_reset' %}">Забыли пароль?</a></p>
   <p>Впервые в Murrralium? <a class="back-link" href="{% url 'register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Зарегистрироваться</a></p>
 </section>
 {% endblock %}

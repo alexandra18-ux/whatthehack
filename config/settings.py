@@ -76,6 +76,19 @@ AUTH_PASSWORD_VALIDATORS = [
         "NumericPasswordValidator",
     ]
 ]
+PASSWORD_RESET_TIMEOUT = 30 * 60
+EMAIL_BACKEND = os.getenv("DJANGO_EMAIL_BACKEND") or (
+    "django.core.mail.backends.console.EmailBackend" if DEBUG else "django.core.mail.backends.smtp.EmailBackend"
+)
+EMAIL_HOST = os.getenv("DJANGO_EMAIL_HOST") or "localhost"
+EMAIL_PORT = int(os.getenv("DJANGO_EMAIL_PORT") or "587")
+EMAIL_HOST_USER = os.getenv("DJANGO_EMAIL_HOST_USER") or ""
+EMAIL_HOST_PASSWORD = os.getenv("DJANGO_EMAIL_HOST_PASSWORD") or ""
+EMAIL_USE_SSL = os.getenv("DJANGO_EMAIL_USE_SSL", "0") == "1"
+EMAIL_USE_TLS = os.getenv("DJANGO_EMAIL_USE_TLS", "1") == "1" and not EMAIL_USE_SSL
+EMAIL_TIMEOUT = 10
+DEFAULT_FROM_EMAIL = os.getenv("DJANGO_DEFAULT_FROM_EMAIL") or "Murrralium <noreply@example.com>"
+
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "mine"
 LOGOUT_REDIRECT_URL = "home"
@@ -94,4 +107,3 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 MAP_TILE_URL = os.getenv("MAP_TILE_URL") or "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 GEOCODER_URL = os.getenv("GEOCODER_URL") or "https://photon.komoot.io/api/"
-YANDEX_MAPS_API_KEY = os.getenv("YANDEX_MAPS_API_KEY", "").strip()
