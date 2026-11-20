@@ -2,6 +2,7 @@
 {% block title %}Личный кабинет · Muralium{% endblock %}
 {% block content %}
 {% include "profile_header.html" with own_profile=True %}
+<form class="account-logout" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="button outline compact">Выйти</button></form>
 {% if user.restrictions.publications_block_active %}<p class="notice">Вам запрещено отправлять новые работы и доработки.</p>{% endif %}
 {% if user.restrictions.comments_block_active %}<p class="notice">Вам запрещено оставлять комментарии.</p>{% endif %}
 {% if notifications %}

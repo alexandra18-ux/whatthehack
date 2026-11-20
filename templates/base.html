@@ -17,19 +17,30 @@
       <a href="{% url 'home' %}#projects"{% if request.resolver_match.url_name == "home" %} aria-current="page"{% endif %}>Проекты</a>
       <a href="{% url 'map' %}"{% if request.resolver_match.url_name == "map" %} aria-current="page"{% endif %}>Карта</a>
       <a href="{% url 'about' %}"{% if request.resolver_match.url_name == "about" %} aria-current="page"{% endif %}>О проекте</a>
-      {% if user.is_authenticated %}<a href="{% url 'mine' %}"{% if request.resolver_match.url_name == "mine" %} aria-current="page"{% endif %}>Личный кабинет</a>{% endif %}
       {% if user.is_staff and perms.placements.moderate_placement %}
       <a href="{% url 'moderation_queue' %}"{% if request.resolver_match.url_name|slice:":11" == "moderation_" %} aria-current="page"{% endif %}>Модерация</a>
       {% endif %}
     </nav>
+    <form class="header-search" role="search" action="{% url 'search' %}" method="get">
+      <label class="visually-hidden" for="project-search">Поиск проектов</label>
+      <input type="search" id="project-search" name="q" value="{{ search_query }}" placeholder="Поиск проектов" maxlength="120" required>
+      <button class="button outline compact" type="submit">Найти</button>
+    </form>
     <div class="header-actions">
       <button class="button outline compact theme-toggle" type="button" aria-label="Тёмная тема" aria-pressed="false" title="Тёмная тема" hidden>
         <span aria-hidden="true"></span>
       </button>
       {% if user.is_authenticated %}
-        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="button outline compact">Выйти</button></form>
+        <a class="header-account" href="{% url 'mine' %}" aria-label="Личный кабинет"{% if request.resolver_match.url_name == "mine" %} aria-current="page"{% endif %}>
+          {% if user.profile.avatar %}
+          <img class="header-avatar" src="{% url 'avatar' user.pk %}" alt="">
+          {% else %}
+          <span class="header-avatar avatar-placeholder" aria-hidden="true">{{ user.profile.nickname|default:user.username|first|upper }}</span>
+          {% endif %}
+        </a>
       {% else %}
         <a class="button outline compact" href="{% url 'login' %}">Войти</a>
+        <a class="button lime compact" href="{% url 'register' %}">Зарегистрироваться</a>
       {% endif %}
     </div>
   </div>

@@ -11,6 +11,7 @@ from apps.users import views as users
 
 urlpatterns = [
     path("", placements.home, name="home"),
+    path("search/", placements.search, name="search"),
     path("about/", TemplateView.as_view(template_name="about.html"), name="about"),
     path("admin/", admin.site.urls),
     path("moderation/", moderation.queue, name="moderation_queue"),

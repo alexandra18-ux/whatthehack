@@ -1,4 +1,4 @@
-<section class="rating-widget" aria-label="Оценка работы" {% if not in_feed %}id="rating"{% endif %}>
+<section class="rating-widget" aria-label="Оценка работы"{% if not in_feed and not in_search %} id="rating"{% endif %}>
   <p class="rating-summary">
     {% if project.rating_count %}<strong>{{ project.rating_average|floatformat:1 }} из 5</strong><span> · всего оценок {{ project.rating_count }}</span>
     {% else %}Оценок пока нет{% endif %}

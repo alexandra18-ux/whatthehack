@@ -1,0 +1,46 @@
+<article class="feed-post" {% if in_feed %}data-feed-swipe {% endif %}id="project-{{ project.pk }}" aria-labelledby="{% if in_feed %}feed-title{% else %}result-title-{{ project.pk }}{% endif %}">
+  <div class="feed-main">
+    <header class="feed-byline">
+      <a class="feed-author" href="{% url 'profile' project.author_id %}">
+        {% if project.author.profile.avatar %}
+        <img src="{% url 'avatar' project.author_id %}" alt="">
+        {% else %}
+        <span class="avatar-placeholder" aria-hidden="true">{{ project.author.profile.nickname|default:project.author.username|first|upper }}</span>
+        {% endif %}
+        {{ project.author.profile.nickname|default:project.author.username }}
+      </a>
+      <time datetime="{{ project.published_at|date:'c' }}">{{ project.published_at|date:"j E Y" }}</time>
+    </header>
+    {% if in_feed %}
+      {% if previous_post %}
+      <a class="button outline feed-arrow" data-feed-direction="previous" href="{% url 'home' %}?post={{ previous_post }}#projects" aria-label="Предыдущее граффити">↑</a>
+      {% else %}
+      <button class="button outline feed-arrow" type="button" disabled aria-label="Предыдущего граффити нет">↑</button>
+      {% endif %}
+    {% endif %}
+    <div class="feed-cover"{% if in_feed %} data-swipe-area{% endif %}>
+      <a href="{% url 'placement' project.pk %}" draggable="false"><img src="{% url 'project_image' project.pk 'result' %}" alt="{{ project.title }}" draggable="false"></a>
+    </div>
+    {% if in_feed %}
+      {% if next_post %}
+      <a class="button outline feed-arrow" data-feed-direction="next" href="{% url 'home' %}?post={{ next_post }}#projects" aria-label="Следующее граффити">↓</a>
+      {% else %}
+      <button class="button outline feed-arrow" type="button" disabled aria-label="Следующего граффити нет">↓</button>
+      {% endif %}
+    {% endif %}
+    <footer class="feed-caption">
+      <div class="feed-title-group">
+        <p class="card-location">{{ project.building.address }}</p>
+        <h3 id="{% if in_feed %}feed-title{% else %}result-title-{{ project.pk }}{% endif %}"{% if in_feed %} tabindex="-1"{% endif %}><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
+      </div>
+      <a class="button outline compact feed-details" href="{% url 'placement' project.pk %}">О работе</a>
+    </footer>
+  </div>
+  <div class="feed-sidebar">
+    <div class="feed-rating">
+      <h3>Рейтинг работы</h3>
+      {% include "rating.html" %}
+    </div>
+    {% include "discussion.html" %}
+  </div>
+</article>
