@@ -53,9 +53,8 @@
         <input type="hidden" name="address_ticket">
         <button class="button lime compact">Создать проект</button>
       </form>
-      {% else %}
-      <a class="button outline compact" id="map-address-action" href="{% url 'login' %}?next={% url 'map' %}" hidden>Войти для создания</a>
       {% endif %}
+      <a class="button outline compact" id="map-address-login" href="{% url 'login' %}" hidden>Войти для создания</a>
     </template>
     <template id="map-street-walk-link">{% include "street_walk_link.html" %}</template>
     <details class="address-catalog">
@@ -66,10 +65,6 @@
       <p>В каталоге пока нет зданий.</p>
       {% endfor %}
     </details>
-    <div class="map-views" id="map-views" hidden>
-      <button class="button outline compact" type="button" data-map-view="engels">Энгельс</button>
-      <button class="button outline compact" type="button" data-map-view="region">Вся область</button>
-    </div>
   </aside>
   <section class="map-panel" aria-label="Карта и метки зданий">
     <div id="city-map" class="city-map" aria-label="Интерактивная карта Саратовской области"
@@ -90,5 +85,5 @@
 {% endblock %}
 {% block scripts %}
 <script defer src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
-<script defer src="{% static 'js/map.js' %}?v=2"></script>
+<script defer src="{% static 'js/map.js' %}?v=3"></script>
 {% endblock %}

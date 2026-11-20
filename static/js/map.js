@@ -17,7 +17,15 @@
         minZoom: 4, maxZoom: 19, zoomSnap: 0.25,
         maxBounds: bounds, maxBoundsViscosity: 1,
         zoomControl: false,
-    }).setView(firstAddress ? addressPoint(firstAddress) : [51.517, 46.08], firstAddress ? 17 : 12);
+    });
+    if (firstAddress) {
+        map.setView(addressPoint(firstAddress), 17);
+    } else {
+        map.fitBounds([[51.475, 45.99], [51.56, 46.155]], {
+            padding: [24, 24],
+            maxZoom: 12,
+        });
+    }
     leaflet.control.zoom({ position: "topright", zoomInTitle: "Приблизить", zoomOutTitle: "Отдалить" }).addTo(map);
     map.attributionControl.setPrefix(false);
 
@@ -105,16 +113,6 @@
     }
     let selection;
     let lookup;
-    const mapViews = document.querySelector("#map-views");
-    mapViews.hidden = false;
-    mapViews.querySelector('[data-map-view="engels"]').addEventListener("click", () => {
-        map.closePopup();
-        map.setView([51.493, 46.124], 13);
-    });
-    mapViews.querySelector('[data-map-view="region"]').addEventListener("click", () => {
-        map.closePopup();
-        map.fitBounds(bounds, { padding: [16, 16] });
-    });
 
     function selectPoint(point) {
         if (selection) {
@@ -163,6 +161,7 @@
         popupContent.append(addressResult.content.cloneNode(true));
         const status = popupContent.querySelector("#map-address-status");
         const action = popupContent.querySelector("#map-address-action");
+        const loginLink = popupContent.querySelector("#map-address-login");
         status.textContent = "Ищем адрес…";
         const popup = leaflet.popup({ offset: [0, -6] }).setLatLng(point).setContent(popupContent).openOn(map);
         const params = new URLSearchParams({
@@ -176,15 +175,15 @@
             if (controller.signal.aborted) return;
             status.textContent = response.ok ? result.address : result.error;
             if (response.ok) {
-                const ticket = action.querySelector("[name=address_ticket]");
-                if (ticket) {
-                    ticket.value = result.ticket;
+                if (result.is_authenticated && action) {
+                    action.querySelector("[name=address_ticket]").value = result.ticket;
+                    action.hidden = false;
                 } else {
-                    const login = new URL(action.href);
+                    const login = new URL(loginLink.href);
                     login.searchParams.set("next", `${location.pathname}?${params}`);
-                    action.href = login.href;
+                    loginLink.href = login.href;
+                    loginLink.hidden = false;
                 }
-                action.hidden = false;
                 appendStreetWalk(popupContent, result.street_walk_url);
             }
         } catch (error) {
@@ -230,6 +229,26 @@
 
     const buildingMarkers = new Map();
 
+    function bindProjectPreview(marker, project) {
+        const preview = document.createElement("div");
+        const image = document.createElement("img");
+        image.alt = "";
+        image.decoding = "async";
+        preview.append(image);
+
+        const title = document.createElement("span");
+        title.textContent = project.title;
+        preview.append(title);
+
+        marker.once("tooltipopen", () => { image.src = project.image; });
+        marker.bindTooltip(preview, {
+            className: "map-project-preview",
+            direction: "top",
+            offset: [0, -12],
+            sticky: true,
+        });
+    }
+
     function showBuilding(marker) {
         lookup?.abort();
         selection?.remove();
@@ -274,6 +293,8 @@
                 title,
             }).addTo(map).bindPopup(popup);
             marker.getElement().setAttribute("aria-label", title);
+            const previewProject = group.projects.find((project) => !project.is_own);
+            if (previewProject) bindProjectPreview(marker, previewProject);
             for (const building of group.buildings) {
                 buildingMarkers.set(String(building.id), marker);
             }

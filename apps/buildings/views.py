@@ -1,15 +1,14 @@
 from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
-from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods
 
 from .addresses import AddressSearchUnavailable, CITY_FILTER, address_at, get_address, in_city, street_walk_url
-from .models import Building, Panorama
-from .panoramas import panorama_frame, parse_camera
+from .models import Building
 
 
 def building_data(building):
@@ -37,6 +36,7 @@ def buildings_api(request):
 
 
 @require_GET
+@never_cache
 def map_address(request):
     try:
         latitude = Decimal(request.GET.get("lat", ""))
@@ -55,6 +55,7 @@ def map_address(request):
         "address": address.label,
         "ticket": address.ticket,
         "street_walk_url": address.street_walk_url,
+        "is_authenticated": request.user.is_authenticated,
     })
 
 
@@ -83,29 +84,6 @@ def detail(request, pk):
 def building_panorama(request, pk):
     building = get_object_or_404(Building, pk=pk)
     return redirect(street_walk_url(building.latitude, building.longitude))
-
-
-@require_GET
-def panorama_image(request, pk):
-    panorama = get_object_or_404(Panorama, pk=pk, is_public=True)
-    try:
-        return FileResponse(panorama.image.open("rb"))
-    except OSError as error:
-        raise Http404 from error
-
-
-@require_GET
-def panorama_view(request, pk):
-    from apps.placements.services.perspective import encode_image
-
-    panorama = get_object_or_404(Panorama, pk=pk, is_public=True)
-    try:
-        camera = parse_camera(request.GET.get("camera", ""))
-        size = (960, 600) if request.GET.get("small") == "1" else (1440, 900)
-        frame = panorama_frame(panorama, camera, size=size)
-    except (ValidationError, OSError, ValueError):
-        return JsonResponse({"error": "Не удалось подготовить вид на стену."}, status=400)
-    return HttpResponse(encode_image(frame).read(), content_type="image/jpeg")
 
 
 @login_required

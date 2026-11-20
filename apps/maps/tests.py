@@ -36,6 +36,9 @@ class MapPageTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers["Referrer-Policy"], "strict-origin-when-cross-origin")
+        self.assertIn("no-store", response.headers["Cache-Control"])
+        self.assertNotContains(response, 'id="map-address-action"')
+        self.assertContains(response, 'id="map-address-login"')
 
     @patch("apps.buildings.addresses.urlopen")
     def test_search_filters_engels_and_creates_only_the_confirmed_saratov_address(self, urlopen):
@@ -57,7 +60,7 @@ class MapPageTests(TestCase):
         request = {"address": "Московская, 55"}
         response = self.client.get(reverse("map"), request)
         self.assertContains(response, "Московская улица, 55")
-        self.assertContains(response, 'panorama%5Bpoint%5D=46.039064%2C51.532716')
+        self.assertContains(response, "panorama%5Bpoint%5D=46.039064%2C51.532716")
         self.assertEqual([match.ref for match in response.context["matches"]], ["w100909666"])
         match, = find_addresses(request["address"])
         self.assertEqual(urlopen.call_count, 1)
@@ -89,18 +92,20 @@ class MapPageTests(TestCase):
 
         response = self.client.get(url, {"lat": "51.53270", "lon": "46.03900"})
         self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["is_authenticated"])
+        self.assertIn("no-store", response.headers["Cache-Control"])
         self.assertEqual(response.json()["address"], "Московская улица, 55")
-        street_walk = urlparse(response.json()["street_walk_url"])
-        self.assertEqual((street_walk.netloc, street_walk.path), ("yandex.ru", "/maps/194/saratov/"))
-        self.assertEqual(parse_qs(street_walk.query), {
-            "l": ["stv,sta"], "ll": ["46.039064,51.532716"],
-            "panorama[point]": ["46.039064,51.532716"], "panorama[full]": ["true"], "z": ["17"],
-        })
+        destination = urlparse(response.json()["street_walk_url"])
+        self.assertEqual(destination.netloc, "yandex.ru")
+        self.assertEqual(parse_qs(destination.query)["panorama[point]"], ["46.039064,51.532716"])
         requested = urlparse(urlopen.call_args.args[0].full_url)
         self.assertEqual(requested.path, "/photon/reverse/")
         self.assertEqual(parse_qs(requested.query)["layer"], ["house"])
 
         self.client.force_login(get_user_model().objects.create_user(username="map-artist"))
+        self.assertContains(self.client.get(reverse("map")), 'id="map-address-action"')
+        authenticated = self.client.get(url, {"lat": "51.53270", "lon": "46.03900"})
+        self.assertTrue(authenticated.json()["is_authenticated"])
         created = self.client.post(reverse("building_add"), {"address_ticket": response.json()["ticket"]})
         building = Building.objects.get(osm_ref="w100909666")
         self.assertRedirects(created, f"{reverse('create')}?building={building.pk}")

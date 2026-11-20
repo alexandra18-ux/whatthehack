@@ -1,6 +1,7 @@
 from django import forms
 from django.conf import settings
 from django.shortcuts import render
+from django.views.decorators.cache import never_cache
 
 from apps.buildings.addresses import AddressSearchUnavailable, find_addresses
 from apps.buildings.views import city_buildings
@@ -15,6 +16,7 @@ class AddressSearchForm(forms.Form):
     )
 
 
+@never_cache
 def maps(request):
     form = AddressSearchForm(request.GET if "address" in request.GET else None)
     matches = None
