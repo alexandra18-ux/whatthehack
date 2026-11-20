@@ -53,6 +53,16 @@ class Comment(models.Model):
         indexes = [models.Index(fields=["placement", "-created_at", "-id"])]
 
 
+class CommentLike(models.Model):
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name="likes")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["comment", "author"], name="one_like_per_comment_author"),
+        ]
+
+
 def with_ratings(queryset, viewer):
     queryset = queryset.annotate(rating_average=Avg("ratings__score"), rating_count=Count("ratings"))
     if viewer.is_authenticated:

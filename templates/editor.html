@@ -20,14 +20,14 @@
       <p id="canvas-empty">Выберите фотографию фасада</p>
       <div id="facade-stage" class="facade-stage" aria-label="Фасад" hidden>
         <canvas id="editor-canvas" aria-hidden="true"></canvas>
-        <button class="corner-handle" type="button" data-corner="0" aria-label="Угол 1, верхний левый" aria-describedby="editor-help" hidden>1</button>
-        <button class="corner-handle" type="button" data-corner="1" aria-label="Угол 2, верхний правый" aria-describedby="editor-help" hidden>2</button>
-        <button class="corner-handle" type="button" data-corner="2" aria-label="Угол 3, нижний правый" aria-describedby="editor-help" hidden>3</button>
-        <button class="corner-handle" type="button" data-corner="3" aria-label="Угол 4, нижний левый" aria-describedby="editor-help" hidden>4</button>
+        <button class="corner-handle" type="button" data-corner="0" aria-label="Угол 1" aria-describedby="editor-help" hidden>1</button>
+        <button class="corner-handle" type="button" data-corner="1" aria-label="Угол 2" aria-describedby="editor-help" hidden>2</button>
+        <button class="corner-handle" type="button" data-corner="2" aria-label="Угол 3" aria-describedby="editor-help" hidden>3</button>
+        <button class="corner-handle" type="button" data-corner="3" aria-label="Угол 4" aria-describedby="editor-help" hidden>4</button>
       </div>
       <img id="preview-image" alt="Предпросмотр фасада с муралом" hidden>
     </div>
-    <p class="editor-help" id="editor-help">Укажите четыре угла по часовой стрелке, начиная с верхнего левого.</p>
+    <p class="editor-help" id="editor-help">Укажите четыре угла стены в любом порядке.</p>
     <p id="editor-message" class="editor-message" role="status"></p>
     {{ form.non_field_errors }}{{ form.corners.errors }}
     <noscript><p class="notice">Для редактора нужен JavaScript.</p></noscript>

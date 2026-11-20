@@ -103,9 +103,11 @@
     element.classList.add("is-live");
     updateHint();
 
+    const addressResult = document.querySelector("#map-address-result");
     let selection;
-    function showAddress(button) {
-        const point = addressPoint(button);
+    let lookup;
+
+    function selectPoint(point) {
         if (selection) {
             selection.setLatLng(point);
         } else {
@@ -114,10 +116,21 @@
                 fillOpacity: 1, interactive: false,
             }).addTo(map);
         }
-        map.setView(point, 17);
+    }
+
+    function highlightAddress(button) {
         for (const option of addressButtons) {
             option.setAttribute("aria-pressed", String(option === button));
         }
+    }
+
+    function showAddress(button) {
+        lookup?.abort();
+        map.closePopup();
+        const point = addressPoint(button);
+        selectPoint(point);
+        map.setView(point, 17);
+        highlightAddress(button);
     }
 
     for (const button of addressButtons) {
@@ -128,6 +141,58 @@
         });
     }
     if (firstAddress) showAddress(firstAddress);
+
+    async function findAddress(point) {
+        lookup?.abort();
+        const controller = new AbortController();
+        lookup = controller;
+        selectPoint(point);
+        highlightAddress(null);
+
+        const popupContent = document.createElement("div");
+        popupContent.className = "map-address-result";
+        popupContent.append(addressResult.content.cloneNode(true));
+        const status = popupContent.querySelector("#map-address-status");
+        const action = popupContent.querySelector("#map-address-action");
+        status.textContent = "Ищем адрес…";
+        const popup = leaflet.popup({ offset: [0, -6] }).setLatLng(point).setContent(popupContent).openOn(map);
+        const params = new URLSearchParams({
+            lat: point.lat.toFixed(6),
+            lon: point.lng.toFixed(6),
+        });
+
+        try {
+            const response = await fetch(`${element.dataset.address}?${params}`, { signal: controller.signal });
+            const result = await response.json();
+            if (controller.signal.aborted) return;
+            status.textContent = response.ok ? result.address : result.error;
+            if (response.ok) {
+                const ticket = action.querySelector("[name=address_ticket]");
+                if (ticket) {
+                    ticket.value = result.ticket;
+                } else {
+                    const login = new URL(action.href);
+                    login.searchParams.set("next", `${location.pathname}?${params}`);
+                    action.href = login.href;
+                }
+                action.hidden = false;
+            }
+        } catch (error) {
+            if (controller.signal.aborted) return;
+            status.textContent = "Поиск адреса временно недоступен. Попробуйте ещё раз.";
+        }
+        if (popup.isOpen()) popup.update();
+    }
+
+    map.on("click", ({ latlng }) => findAddress(latlng));
+    const initialParams = new URLSearchParams(location.search);
+    if (initialParams.has("lat") && initialParams.has("lon")) {
+        const initialPoint = [Number(initialParams.get("lat")), Number(initialParams.get("lon"))];
+        if (leaflet.latLngBounds(bounds).contains(initialPoint)) {
+            map.setView(initialPoint, 17);
+            findAddress(leaflet.latLng(initialPoint));
+        }
+    }
 
     async function load(url, key) {
         const response = await fetch(url);

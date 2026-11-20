@@ -4,14 +4,16 @@
     {% else %}Оценок пока нет{% endif %}
   </p>
   {% if user.is_authenticated %}
-  {% if project.viewer_score %}<p class="rating-mine">Ваша оценка: {{ project.viewer_score }} из 5</p>{% endif %}
   <form method="post" action="{% url 'rate' project.pk %}" class="rating-form" aria-label="Оценить от 1 до 5">
     {% csrf_token %}
     {% if in_feed %}<input type="hidden" name="source" value="feed">{% endif %}
+    {% with selected=project.viewer_score|default_if_none:""|stringformat:"s" %}
     {% for score in "12345" %}
-    <button type="submit" name="score" value="{{ score }}" aria-label="Оценить на {{ score }} из 5"
-            {% if project.viewer_score|stringformat:"s" == score %}class="is-rated" aria-pressed="true"{% endif %}><span aria-hidden="true">★</span></button>
+    <button class="{% if selected and score <= selected %}is-rated{% endif %}" type="submit"
+            name="score" value="{{ score }}" aria-label="Оценить на {{ score }} из 5"
+            aria-pressed="{% if selected == score %}true{% else %}false{% endif %}"><span aria-hidden="true">{% if selected and score <= selected %}★{% else %}☆{% endif %}</span></button>
     {% endfor %}
+    {% endwith %}
   </form>
   {% endif %}
 </section>
