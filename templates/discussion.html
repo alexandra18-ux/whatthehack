@@ -1,4 +1,4 @@
-<aside class="discussion" aria-label="Комментарии"{% if not in_feed %} id="comments"{% endif %}>
+<aside class="discussion" aria-label="Комментарии"{% if not in_feed and not in_search %} id="comments"{% endif %}>
   <h3>Комментарии</h3>
   <ul class="comment-list"{% if in_feed %} tabindex="0" aria-label="Комментарии к работе {{ project.title }}"{% endif %}>
     {% for entry in comments %}
@@ -11,7 +11,7 @@
     </li>
     {% empty %}<li class="no-comments">Комментариев пока нет.</li>{% endfor %}
   </ul>
-  {% if in_feed %}
+  {% if in_feed or in_search %}
   <a class="back-link" href="{% url 'placement' project.pk %}#comments">Все комментарии</a>
   {% else %}
   {% include "pagination.html" with anchor="comments" %}

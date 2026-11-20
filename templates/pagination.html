@@ -1,7 +1,7 @@
 {% if page.has_other_pages %}
 <nav class="pagination" aria-label="Страницы">
-  {% if page.has_previous %}<a class="button outline compact" href="?page={{ page.previous_page_number }}{% if anchor %}#{{ anchor }}{% endif %}">Назад</a>{% endif %}
+  {% if page.has_previous %}<a class="button outline compact" href="{% querystring page=page.previous_page_number %}{% if anchor %}#{{ anchor }}{% endif %}">Назад</a>{% endif %}
   <span>Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>
-  {% if page.has_next %}<a class="button outline compact" href="?page={{ page.next_page_number }}{% if anchor %}#{{ anchor }}{% endif %}">Дальше</a>{% endif %}
+  {% if page.has_next %}<a class="button outline compact" href="{% querystring page=page.next_page_number %}{% if anchor %}#{{ anchor }}{% endif %}">Дальше</a>{% endif %}
 </nav>
 {% endif %}

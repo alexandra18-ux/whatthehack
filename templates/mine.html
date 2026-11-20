@@ -2,6 +2,7 @@
 {% block title %}Личный кабинет · Muralium{% endblock %}
 {% block content %}
 {% include "profile_header.html" with own_profile=True %}
+<form class="account-logout" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="button outline compact">Выйти</button></form>
 <section class="panel profile-settings">
   <h2>Настройки профиля</h2>
   <form method="post" enctype="multipart/form-data" class="field-stack">

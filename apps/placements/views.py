@@ -1,9 +1,11 @@
+import re
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -55,6 +57,28 @@ def home(request):
         return render(request, "feed.html", context)
     context["featured_project"] = published.first() if post is not None else project
     return render(request, "home.html", context)
+
+
+def search(request):
+    query = request.GET.get("q", "").strip()[:120]
+    page = None
+    if query:
+        projects = published_placements()
+        for term in query.split():
+            pattern = re.escape(term)
+            projects = projects.filter(
+                Q(title__iregex=pattern)
+                | Q(description__iregex=pattern)
+                | Q(building__address__iregex=pattern)
+                | Q(author__username__iregex=pattern)
+                | Q(author__profile__nickname__iregex=pattern)
+            )
+        projects = with_ratings(projects, request.user).prefetch_related(Prefetch(
+            "comments", queryset=Comment.objects.select_related("author__profile")[:3],
+            to_attr="search_comments",
+        ))
+        page = Paginator(projects, 6).get_page(request.GET.get("page"))
+    return render(request, "search.html", {"search_query": query, "page": page})
 
 
 def map_api(request):
