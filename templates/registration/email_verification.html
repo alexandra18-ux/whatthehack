@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Подтверждение почты · Murrralium{% endblock %}
+{% block content %}
+<section class="panel auth-panel">
+  <h1>Подтверждение почты</h1>
+  {% if address %}
+  <p>Привязать <strong>{{ address }}</strong> к вашему аккаунту?</p>
+  <form method="post" class="field-stack">
+    {% csrf_token %}
+    <button class="button lime" type="submit">Подтвердить почту</button>
+  </form>
+  {% else %}
+  <p>Ссылка недействительна или срок её действия истёк.</p>
+  {% endif %}
+  <a class="back-link" href="{% url 'mine' %}?tab=settings">Настройки профиля</a>
+</section>
+{% endblock %}

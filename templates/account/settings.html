@@ -15,3 +15,25 @@
     </div>
   </form>
 </section>
+<section class="panel account-settings account-recovery-settings" aria-labelledby="recovery-settings-title">
+  <h2 id="recovery-settings-title">Почта для восстановления</h2>
+  {% if profile.verified_email %}
+  <p>Подтверждённый адрес: <strong>{{ profile.verified_email }}</strong></p>
+  {% else %}
+  <p>Привяжите почту, чтобы восстановить пароль при необходимости.</p>
+  {% endif %}
+  {% if profile.pending_email %}<p class="account-handle">Ожидает подтверждения: {{ profile.pending_email }}</p>{% endif %}
+  {% if profile.verified_email %}
+  <details class="account-recovery-change">
+    <summary class="button outline">Поменять почту</summary>
+    <p>Текущий адрес останется привязанным, пока вы не подтвердите новый.</p>
+  {% endif %}
+  <form class="field-stack" method="post" action="{% url 'request_profile_email' %}">
+    {% csrf_token %}
+    {{ email_form.email.as_field_group }}
+    <button class="button outline" type="submit">Отправить ссылку для подтверждения</button>
+  </form>
+  {% if profile.verified_email %}
+  </details>
+  {% endif %}
+</section>

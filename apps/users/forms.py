@@ -13,6 +13,10 @@ class RegistrationForm(UserCreationForm):
         return username
 
 
+class ProfileEmailForm(forms.Form):
+    email = forms.EmailField(label="Email для восстановления", max_length=254)
+
+
 class ProfileForm(forms.Form):
     nickname = forms.CharField(label="Ник", max_length=40, required=False, validators=[validate_public_text])
     avatar = forms.FileField(
