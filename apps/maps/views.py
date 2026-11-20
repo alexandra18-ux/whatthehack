@@ -29,6 +29,7 @@ def maps(request):
         "selected_building": request.GET.get("building", ""),
         "address_form": form,
         "matches": matches,
+        "yandex_panorama_key": settings.YANDEX_MAPS_API_KEY,
     })
     # The tile service needs the app origin, while the page path can stay private.
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"

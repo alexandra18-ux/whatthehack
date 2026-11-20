@@ -2,6 +2,7 @@ import json
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db.models import Exists, OuterRef
@@ -97,6 +98,7 @@ def detail(request, pk):
         "facades": building.facades.filter(is_public=True),
         "has_panoramas": nearby_panoramas(building).exists(),
         "street_walk_url": street_walk_url(building.latitude, building.longitude),
+        "yandex_panorama_key": settings.YANDEX_MAPS_API_KEY,
         "projects": published_placements().filter(building=building),
     })
 
@@ -121,6 +123,7 @@ def building_panorama(request, pk):
         "frame_url": f"{reverse('panorama_view', args=[panorama.pk])}?{urlencode({'camera': serialized, 'small': 1})}",
         "editor_url": f"{reverse('create')}?{urlencode({'building': pk, 'panorama_source': panorama.pk, 'camera': serialized})}",
         "street_walk_url": street_walk_url(building.latitude, building.longitude),
+        "yandex_panorama_key": settings.YANDEX_MAPS_API_KEY,
     })
 
 

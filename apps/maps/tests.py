@@ -13,6 +13,16 @@ from apps.buildings.models import Building
 
 
 class MapPageTests(TestCase):
+    def test_panorama_dialog_is_available_only_with_configured_key(self):
+        url = reverse("map")
+        with self.settings(YANDEX_MAPS_API_KEY=""):
+            self.assertNotContains(self.client.get(url), 'id="street-walk-dialog"')
+        with self.settings(YANDEX_MAPS_API_KEY="test-browser-key"):
+            response = self.client.get(url)
+            self.assertContains(response, 'id="street-walk-dialog"')
+            self.assertContains(response, 'data-api-key="test-browser-key"')
+            self.assertNotContains(response, "api-maps.yandex.ru")
+
     def test_map_sends_site_origin_to_public_tile_server(self):
         response = self.client.get(reverse("map"))
 
