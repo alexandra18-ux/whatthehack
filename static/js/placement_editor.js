@@ -206,8 +206,14 @@ async function getCatalog(url) {
     return new Map((await response.json()).items.map((item) => [String(item.id), item.url]));
 }
 
-const facadeCatalog = getCatalog(form.dataset.facades).catch(() => new Map());
-const designCatalog = getCatalog(form.dataset.designs).catch(() => new Map());
+async function editorCatalog(url, currentId, currentUrl) {
+    const catalog = await getCatalog(url).catch(() => new Map());
+    if (currentId && currentUrl) catalog.set(currentId, currentUrl);
+    return catalog;
+}
+
+const facadeCatalog = editorCatalog(form.dataset.facades, form.dataset.currentFacade, form.dataset.currentFacadeUrl);
+const designCatalog = editorCatalog(form.dataset.designs, form.dataset.currentDesign, form.dataset.currentDesignUrl);
 
 async function choosePhoto(restorePoints = false) {
     finishDrag();

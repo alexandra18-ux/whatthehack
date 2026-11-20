@@ -65,6 +65,8 @@ if os.getenv("POSTGRES_HOST"):
 else:
     DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
 
+AUTHENTICATION_BACKENDS = ["apps.users.auth.AccountBackend"]
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": f"django.contrib.auth.password_validation.{validator}"}
     for validator in [

@@ -22,6 +22,10 @@
   {% endwith %}
 </header>
 {% if project.rejection_reason %}<p class="notice">{{ project.rejection_reason }}</p>{% endif %}
+{% if project.revision_notes %}<p class="notice">{{ project.revision_notes|linebreaksbr }}</p>{% endif %}
+{% if project.status == "revision" and user.pk == project.author_id and not user.restrictions.publications_block_active %}
+<a class="button lime" href="{% url 'revise' project.pk %}">Доработать заявку</a>
+{% endif %}
 <div class="project-detail-layout">
 <div>
 <div class="comparison" data-comparison>
