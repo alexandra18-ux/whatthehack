@@ -59,7 +59,7 @@
     </div>
   </div>
 </header>
-<main class="container main">
+<main class="container main{% block main_class %}{% endblock %}">
   {% for message in messages %}<p class="notice" role="status">{{ message }}</p>{% endfor %}
   {% block content %}{% endblock %}
 </main>

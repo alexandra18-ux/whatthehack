@@ -18,7 +18,7 @@
         maxBounds: bounds, maxBoundsViscosity: 1,
         zoomControl: false,
     }).setView(firstAddress ? addressPoint(firstAddress) : [51.5335, 46.0343], firstAddress ? 17 : 13);
-    leaflet.control.zoom({ zoomInTitle: "Приблизить", zoomOutTitle: "Отдалить" }).addTo(map);
+    leaflet.control.zoom({ position: "topright", zoomInTitle: "Приблизить", zoomOutTitle: "Отдалить" }).addTo(map);
     map.attributionControl.setPrefix(false);
 
     function isOverMap(event) {
@@ -226,6 +226,18 @@
         popup.append(heading, list);
     }
 
+    const buildingMarkers = new Map();
+
+    function showBuilding(marker) {
+        lookup?.abort();
+        selection?.remove();
+        selection = undefined;
+        highlightAddress(null);
+        map.closePopup();
+        map.setView(marker.getLatLng(), 17);
+        marker.openPopup();
+    }
+
     async function showMarkers() {
         const [buildings, projects] = await Promise.allSettled([
             load(element.dataset.buildings, "buildings"),
@@ -263,12 +275,35 @@
                 title,
             }).addTo(map).bindPopup(popup);
             marker.getElement().setAttribute("aria-label", title);
-            if (!firstAddress && group.buildings.some((building) => String(building.id) === element.dataset.selected)) {
-                map.setView(group.point, 16);
-                marker.openPopup();
+            for (const building of group.buildings) {
+                buildingMarkers.set(String(building.id), marker);
             }
+        }
+        const selectedMarker = buildingMarkers.get(element.dataset.selected);
+        if (!firstAddress && selectedMarker) {
+            map.setView(selectedMarker.getLatLng(), 16);
+            selectedMarker.openPopup();
         }
     }
 
-    showMarkers();
+    const markersReady = showMarkers();
+    const catalog = document.querySelector(".address-catalog");
+    let requestedBuilding;
+    for (const link of catalog.querySelectorAll("[data-map-building]")) {
+        link.addEventListener("click", async (event) => {
+            if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            requestedBuilding = link;
+            await markersReady;
+            if (requestedBuilding !== link) return;
+            const marker = buildingMarkers.get(link.dataset.mapBuilding);
+            if (!marker) {
+                location.assign(link.href);
+                return;
+            }
+            catalog.open = false;
+            showBuilding(marker);
+            marker.getElement().focus({ preventScroll: true });
+        });
+    }
 })();
