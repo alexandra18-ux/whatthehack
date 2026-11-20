@@ -1,9 +1,12 @@
-{% extends "base.html" %}{% load static tz %}
+{% extends "moderation/base.html" %}{% load static tz %}
 {% block title %}Ограничения {{ account.username }} · Muralium{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/restrictions.css' %}">{% endblock %}
-{% block content %}
+{% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/restrictions.css' %}">{% endblock %}
+{% block moderation_content %}
 <a class="back-link" href="{% url 'moderation_accounts' %}">← К пользователям</a>
-<header class="page-heading"><h1>Ограничения аккаунта</h1><p>{{ account.username }}</p></header>
+<header class="moderation-heading">
+  <h1>Ограничения аккаунта</h1>
+  {% include "moderation/person.html" with person=account only %}
+</header>
 {% get_current_timezone as moderation_timezone %}
 <form class="panel editor-panel restriction-card" method="post" data-restriction-form data-time-zone="{{ moderation_timezone }}">
   {% csrf_token %}

@@ -439,12 +439,14 @@ class PlacementWorkflowTests(TestCase):
         self.assertContains(reviewer.get(profile), restrict_url)
         self.assertContains(reviewer.get(directory), expired.username)
         self.assertContains(reviewer.get(directory, {"q": "Мастер"}), restrict_url)
+        self.assertEqual(list(reviewer.get(directory, {"role": "admin"}).context["page"]), [moderator])
+        self.assertEqual(list(reviewer.get(directory, {"role": "user", "q": "Мастер"}).context["page"]), [self.owner])
 
         self.assertRedirects(reviewer.post(restrict_url, {
             "comments_blocked": "24",
             "publications_blocked": "indefinite",
         }), restrict_url)
-        response = reviewer.get(directory, {"status": "restricted"})
+        response = reviewer.get(directory, {"role": "user", "status": "restricted"})
         self.assertContains(response, self.owner.username)
         self.assertNotContains(response, expired.username)
 

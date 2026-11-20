@@ -1,0 +1,70 @@
+.moderation-shell { max-width: 940px; margin-inline: auto; }
+.moderation-shell:has(.moderation-dashboard) { max-width: 1120px; }
+.moderation-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 24px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.moderation-nav a {
+  padding: 8px 12px;
+  border-radius: 7px;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 650;
+}
+.moderation-nav a:hover { background: var(--hover); color: var(--ink); }
+.moderation-nav a[aria-current="page"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
+.moderation-heading { display: grid; justify-items: start; gap: 8px; margin: 16px 0 20px; }
+.moderation-heading h1 { font-size: clamp(2rem, 4vw, 3.3rem); }
+.moderation-dashboard { display: grid; grid-template-columns: minmax(0, 1fr) minmax(215px, 260px); gap: 20px; align-items: start; }
+.moderation-section-heading { display: flex; gap: 8px 12px; flex-wrap: wrap; align-items: baseline; margin-bottom: 12px; }
+.moderation-section-heading span, .moderation-muted { color: var(--muted); font-size: .9rem; }
+.moderation-list { display: grid; gap: 10px; padding: 0; margin: 12px 0; list-style: none; }
+.moderation-card {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  overflow-wrap: anywhere;
+}
+.moderation-card-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 5px 12px; flex-wrap: wrap; }
+.moderation-card-heading h3 { font-size: 1.18rem; font-weight: 780; letter-spacing: -.025em; }
+.moderation-card-heading a, .moderation-person { text-decoration: none; color: var(--ink); }
+.moderation-card-heading a:hover, a.moderation-person:hover { color: var(--link); }
+.moderation-card-heading time, .moderation-role { color: var(--muted); font-size: .85rem; }
+.moderation-person { width: fit-content; display: inline-flex; align-items: center; gap: 8px; font-size: .92rem; }
+.moderation-person img, .moderation-avatar-placeholder { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
+.moderation-avatar-placeholder { display: grid; place-items: center; background: var(--accent); color: #20251a; font-weight: 750; }
+.moderation-status { font-size: .88rem; width: fit-content; padding: 4px 8px; border-radius: 6px; background: var(--surface-muted); }
+.moderation-note { padding: 8px 10px; background: var(--surface-muted); border-inline-start: 2px solid var(--line); border-radius: 5px; }
+.moderation-card > .button { justify-self: start; }
+.moderation-queue-card { grid-template-columns: 140px minmax(0, 1fr); align-items: start; }
+.moderation-queue-copy { display: grid; gap: 6px; }
+.moderation-thumbnail { display: block; aspect-ratio: 1.45; background: var(--surface-muted); border-radius: 8px; overflow: hidden; }
+.moderation-thumbnail img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.moderation-overview h2 { font-size: 1.15rem; }
+.moderation-overview dl { margin: 0; }
+.moderation-overview dl div { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.moderation-overview dd { margin: 0; font-weight: 750; font-variant-numeric: tabular-nums; }
+.moderation-empty { padding: 18px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); }
+.moderation-filters { margin: 12px 0; }
+.moderation-filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 14px; }
+.moderation-review-history { margin-top: 24px; }
+@media (max-width: 740px) {
+  .moderation-dashboard { grid-template-columns: 1fr; gap: 12px; }
+}
+@media (max-width: 480px) {
+  .moderation-filter-grid { grid-template-columns: 1fr; }
+  .moderation-queue-card { grid-template-columns: 85px minmax(0, 1fr); }
+  .moderation-nav a { padding: 6px 8px; font-size: .875rem; }
+}
+.moderation-account-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.moderation-account-filters .moderation-nav { margin-bottom: 0; }
