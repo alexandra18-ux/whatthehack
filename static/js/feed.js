@@ -9,8 +9,12 @@
     let suppressClick = false;
     let wheelTimer;
     let wheelUsed = false;
+    let lastWheelDelta = 0;
+    let queuedWheelDistance = 0;
+    let queuedDirection;
+    const adjacent = new Map();
 
-    const WHEEL_GAP = 180;
+    const WHEEL_GAP = 140;
     const WHEEL_THRESHOLD = 75;
 
     function activePost() {
@@ -29,6 +33,32 @@
         const replacement = template.content.querySelector("[data-feed]");
         if (!replacement) throw new Error("Feed was missing from the response");
         return replacement;
+    }
+
+    function preload(url) {
+        if (adjacent.has(url)) return adjacent.get(url);
+        const controller = new AbortController();
+        const entry = { controller };
+        entry.request = loadFeed(url, controller.signal).then((fragment) => {
+            entry.fragment = fragment;
+            const source = fragment.querySelector(".feed-cover img")?.getAttribute("src");
+            if (source) {
+                entry.image = new Image();
+                entry.image.src = source;
+            }
+            return fragment;
+        }).catch(() => null);
+        adjacent.set(url, entry);
+        return entry;
+    }
+
+    function warmAdjacentPosts() {
+        for (const entry of adjacent.values()) entry.controller.abort();
+        adjacent.clear();
+        const previous = navigationLink("previous");
+        const next = navigationLink("next");
+        if (previous) preload(previous.href);
+        if (next) preload(next.href);
     }
 
     function animate(element, property, start, end, duration) {
@@ -65,18 +95,16 @@
         if (!link) return;
 
         if (current.direction !== direction) {
-            current.loader?.abort();
             current.preview?.remove();
             current.preview = null;
             current.travel = 0;
             current.direction = direction;
             current.url = link.href;
-            current.loader = new AbortController();
-            const { loader } = current;
-            current.fragment = loadFeed(current.url, loader.signal).catch(() => null);
+            const url = current.url;
+            const entry = preload(url);
             if (!reducedMotion.matches) {
-                current.fragment.then((fragment) => {
-                    if (!fragment || gesture !== current || loader.signal.aborted) return;
+                const showPreview = (fragment) => {
+                    if (!fragment || gesture !== current || current.url !== url || current.preview) return;
                     const preview = fragment.querySelector(".feed-post")?.cloneNode(true);
                     if (!preview) return;
 
@@ -86,8 +114,10 @@
                     current.travel = direction === "next"
                         ? current.post.offsetHeight : preview.offsetHeight;
                     current.previewStart = direction === "next" ? current.travel : -current.travel;
-                    updateDrag(current);
-                });
+                    preview.style.transform = y((current.offset || 0) + current.previewStart);
+                };
+                if (entry.fragment) showPreview(entry.fragment);
+                else entry.request.then(showPreview);
             }
         }
         updateDrag(current);
@@ -110,7 +140,6 @@
     function cancelGesture() {
         const current = gesture;
         if (!current) return;
-        current.loader?.abort();
         gesture = null;
         if (current.offset) {
             const animations = [animate(current.post, "transform", y(current.offset), y(0), 170)];
@@ -136,15 +165,12 @@
         const viewport = incoming.parentElement;
         makePreview(outgoing);
         viewport.prepend(outgoing);
-        const fromHeight = outgoing.offsetHeight;
-        const toHeight = incoming.offsetHeight;
-        const travel = direction === "next" ? -fromHeight : toHeight;
+        const travel = viewport.clientHeight * (direction === "next" ? -1 : 1);
         const start = Math.sign(travel) * Math.min(Math.abs(offset), Math.abs(travel));
         const duration = offset ? 285 : 370;
         const animations = [
             animate(outgoing, "transform", y(start), y(travel), duration),
             animate(incoming, "transform", y(start - travel), y(0), duration),
-            animate(viewport, "height", fromHeight + "px", toHeight + "px", duration),
         ];
         for (const animation of animations) {
             animation.pause();
@@ -175,6 +201,7 @@
     async function navigate(url, { direction, fromHistory = false, moveFocus = false, drag } = {}) {
         if (pending && !fromHistory) return;
         pending?.abort();
+        if (fromHistory) queuedDirection = undefined;
         if (!drag) {
             cancelGesture();
             stopSettling();
@@ -184,16 +211,25 @@
         feed.setAttribute("aria-busy", "true");
 
         try {
-            const replacement = (drag && await drag.fragment) ?? await loadFeed(url, controller.signal);
+            const cached = adjacent.get(url);
+            adjacent.delete(url);
+            const replacement = (cached && await cached.request) ?? await loadFeed(url, controller.signal);
             if (controller.signal.aborted) return;
             const outgoing = activePost();
+            const viewport = outgoing?.parentElement;
+            const incoming = replacement.querySelector(".feed-post");
             const offset = drag?.offset || 0;
             if (drag) releaseGesture(drag);
             if (!fromHistory) history.pushState(null, "", url);
-            replacement.setAttribute("aria-busy", "true");
-            feed.replaceWith(replacement);
-            feed = replacement;
-            const incoming = activePost();
+            // Keep the wheel viewport mounted. Chromium can latch a wheel gesture to it.
+            if (viewport && incoming) {
+                outgoing.replaceWith(incoming);
+                feed.dataset.post = replacement.dataset.post;
+            } else {
+                replacement.setAttribute("aria-busy", "true");
+                feed.replaceWith(replacement);
+                feed = replacement;
+            }
             if (direction && outgoing && incoming && !reducedMotion.matches) {
                 await slideTo(incoming, outgoing, direction, offset, controller.signal);
             }
@@ -202,14 +238,19 @@
             const title = feed.querySelector("#feed-title");
             announcement.textContent = title?.textContent.trim() ?? "В ленте пока нет работ";
             if (moveFocus) (navigationLink(direction) || title)?.focus({ preventScroll: true });
+            warmAdjacentPosts();
         } catch {
             if (controller.signal.aborted) return;
+            queuedDirection = undefined;
             if (fromHistory) location.reload();
             else location.assign(url);
         } finally {
             if (pending === controller) {
                 feed.removeAttribute("aria-busy");
                 pending = null;
+                const link = navigationLink(queuedDirection);
+                queuedDirection = undefined;
+                if (link) navigate(link.href, { direction: link.dataset.feedDirection });
             }
         }
     }
@@ -270,26 +311,59 @@
         if (event.pointerId === gesture?.pointer) cancelGesture();
     });
 
-    // Trackpads emit wheel bursts. A pause separates a new gesture from inertial scrolling.
-    section.addEventListener("wheel", (event) => {
-        if (
-            event.ctrlKey || event.metaKey || !event.target.closest("[data-feed-swipe]") ||
-            event.target.closest(".feed-sidebar, input, textarea, select, [contenteditable]") ||
-            Math.abs(event.deltaY) <= Math.abs(event.deltaX) || gesture?.pointer !== undefined
-        ) return;
-        if (!navigationLink(event.deltaY > 0 ? "next" : "previous")) return;
+    // Keep the whole wheel gesture in the feed, even when its original card has moved away.
+    document.addEventListener("wheel", (event) => {
+        if (event.ctrlKey || event.metaKey) return;
+        const hit = document.elementFromPoint(event.clientX, event.clientY);
+        const viewport = hit?.closest(".feed-viewport");
+        if (!wheelTimer) {
+            if (!viewport) return;
+            for (let panel = hit; panel !== viewport; panel = panel.parentElement) {
+                if (panel.matches(".comment-list, .feed-sidebar, textarea") &&
+                    panel.scrollHeight > panel.clientHeight) return;
+            }
+            if (hit.closest("input, textarea, select, [contenteditable]")) {
+                event.preventDefault();
+                return;
+            }
+        }
         event.preventDefault();
         clearTimeout(wheelTimer);
         wheelTimer = setTimeout(() => {
+            wheelTimer = null;
             wheelUsed = false;
-            if (!pending && gesture) cancelGesture();
+            lastWheelDelta = 0;
+            queuedWheelDistance = 0;
+            if (!pending && gesture && gesture.pointer === undefined) cancelGesture();
         }, WHEEL_GAP);
-        if (wheelUsed || pending) return;
+        if (
+            !viewport || gesture?.pointer !== undefined ||
+            Math.abs(event.deltaY) <= Math.abs(event.deltaX) ||
+            !navigationLink(event.deltaY > 0 ? "next" : "previous")
+        ) return;
 
         const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1;
+        const delta = event.deltaY * unit;
+        // A fresh flick can arrive before the previous gesture's momentum has gone idle.
+        if (wheelUsed && Math.abs(delta) >= 32 &&
+            (Math.abs(lastWheelDelta) <= 12 || Math.sign(delta) !== Math.sign(lastWheelDelta))) {
+            wheelUsed = false;
+            queuedWheelDistance = 0;
+        }
+        lastWheelDelta = delta;
+        if (wheelUsed) return;
+        if (pending) {
+            queuedWheelDistance += delta;
+            if (Math.abs(queuedWheelDistance) >= WHEEL_THRESHOLD) {
+                queuedDirection = queuedWheelDistance > 0 ? "next" : "previous";
+                wheelUsed = true;
+                queuedWheelDistance = 0;
+            }
+            return;
+        }
         stopSettling();
         gesture ??= { post: activePost(), distance: 0 };
-        trackGesture(gesture, gesture.distance - event.deltaY * unit);
+        trackGesture(gesture, gesture.distance - delta);
         if (Math.abs(gesture.distance) >= WHEEL_THRESHOLD) {
             wheelUsed = true;
             commitGesture(gesture);
@@ -320,4 +394,6 @@
         if (!pending && target.searchParams.get("post") === feed.dataset.post) return;
         navigate(target.href, { fromHistory: true });
     });
+
+    warmAdjacentPosts();
 })();

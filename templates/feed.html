@@ -13,34 +13,28 @@
             {% endif %}
             {{ project.author.profile.nickname|default:project.author.username }}
           </a>
-          <time datetime="{{ project.published_at|date:'c' }}">{{ project.published_at|date:"j E Y" }}</time>
-        </header>
-        <div class="feed-step">
           {% if previous_post %}
           <a class="button outline compact feed-arrow" data-feed-direction="previous" href="{% url 'home' %}?post={{ previous_post }}#projects" aria-label="Предыдущее граффити">↑</a>
           {% else %}
           <button class="button outline compact feed-arrow" type="button" disabled aria-label="Предыдущего граффити нет">↑</button>
           {% endif %}
-        </div>
+          <time datetime="{{ project.published_at|date:'c' }}">{{ project.published_at|date:"j E Y" }}</time>
+        </header>
         <div class="feed-cover" data-swipe-area>
           <a href="{% url 'placement' project.pk %}" draggable="false"><img src="{% url 'project_image' project.pk 'result' %}" alt="{{ project.title }}" draggable="false"></a>
-          <div class="feed-score" aria-label="Средняя оценка">
-            <span aria-hidden="true">★</span>
-            {% if project.rating_count %}{{ project.rating_average|floatformat:1 }}{% else %}—{% endif %}
-          </div>
         </div>
-        <div class="feed-step">
+        <footer class="feed-caption">
+          <div class="feed-title-group">
+            <p class="card-location">{{ project.building.address }}</p>
+            <h3 id="feed-title" tabindex="-1"><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
+          </div>
           {% if next_post %}
           <a class="button outline compact feed-arrow" data-feed-direction="next" href="{% url 'home' %}?post={{ next_post }}#projects" aria-label="Следующее граффити">↓</a>
           {% else %}
           <button class="button outline compact feed-arrow" type="button" disabled aria-label="Следующего граффити нет">↓</button>
           {% endif %}
-        </div>
-        <div class="feed-copy">
-          <p class="card-location">{{ project.building.address }}</p>
-          <h3 id="feed-title" tabindex="-1"><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
-          <p>{{ project.description }}</p>
-        </div>
+          <a class="button outline compact feed-details" href="{% url 'placement' project.pk %}">О работе</a>
+        </footer>
       </div>
       <div class="feed-sidebar">
         <div class="feed-rating">
