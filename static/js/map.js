@@ -264,9 +264,6 @@
             const popup = document.createElement("div");
             popup.className = "map-popup";
             appendLinks(popup, "Здания", group.buildings, "address");
-            appendLinks(popup, "Панорамы 360°", group.buildings.filter((building) => building.panorama_url).map(
-                (building) => ({ title: "Открыть панораму 360°", url: building.panorama_url }),
-            ), "title");
             appendLinks(popup, "Опубликованные проекты", group.projects, "title");
             const title = hasProjects ? group.projects[0].address : group.buildings[0].address;
             const marker = leaflet.marker(group.point, {

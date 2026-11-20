@@ -61,7 +61,7 @@
     <details class="address-catalog">
       <summary>Здания в каталоге</summary>
       {% for building in buildings %}
-      <a href="{% url 'building' building.pk %}" class="building-row" data-map-building="{{ building.pk }}"><span class="pin" aria-hidden="true"></span><span>{{ building.address }}{% if building.panorama_available %}<small class="map-panorama-label">Панорама 360°</small>{% endif %}</span></a>
+      <a href="{% url 'building' building.pk %}" class="building-row" data-map-building="{{ building.pk }}"><span class="pin" aria-hidden="true"></span><span>{{ building.address }}</span></a>
       {% empty %}
       <p>В каталоге пока нет зданий.</p>
       {% endfor %}
@@ -90,5 +90,5 @@
 {% endblock %}
 {% block scripts %}
 <script defer src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
-<script defer src="{% static 'js/map.js' %}"></script>
+<script defer src="{% static 'js/map.js' %}?v=2"></script>
 {% endblock %}

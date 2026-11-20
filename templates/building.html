@@ -6,7 +6,6 @@
   <h1>{{ building.address }}</h1>
   <div class="address-actions">
     <a class="button lime" href="{% url 'create' %}?building={{ building.pk }}">Примерить мурал</a>
-    {% if has_panoramas %}<a class="button outline" href="{% url 'building_panorama' building.pk %}">Открыть панораму 360°</a>{% endif %}
   </div>
   {% include "street_walk_link.html" %}
 </header>
