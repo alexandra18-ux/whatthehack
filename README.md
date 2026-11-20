@@ -1,4 +1,4 @@
-# Muralium
+# Murrralium
 
 Стартовый проект веб-платформы для примерки муралов на городские фасады. Сервер работает на Django, интерфейс использует Django Templates и JavaScript, а перспективный рендер выполняется в OpenCV.
 
@@ -11,7 +11,7 @@ Copy-Item .env.example .env
 docker compose up --build
 ```
 
-Откройте [Muralium](http://127.0.0.1:8000/). Перед запуском Compose применяет миграции и загружает три демонстрационных проекта. Для входа в [Django Admin](http://127.0.0.1:8000/admin/) создайте локального администратора.
+Откройте [Murrralium](http://127.0.0.1:8000/). Перед запуском Compose применяет миграции и загружает три демонстрационных проекта. Для входа в [Django Admin](http://127.0.0.1:8000/admin/) создайте локального администратора.
 
 ```powershell
 docker compose exec web python manage.py createsuperuser

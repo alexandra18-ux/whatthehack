@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Вход · Muralium{% endblock %}
+{% block title %}Вход · Murrralium{% endblock %}
 {% block content %}
 <section class="panel auth-panel">
   <h1>Вход</h1>
@@ -8,6 +8,6 @@
     <input type="hidden" name="next" value="{{ next }}">
     <button class="button lime">Войти</button>
   </form>
-  <p>Впервые в Muralium? <a class="back-link" href="{% url 'register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Зарегистрироваться</a></p>
+  <p>Впервые в Murrralium? <a class="back-link" href="{% url 'register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Зарегистрироваться</a></p>
 </section>
 {% endblock %}

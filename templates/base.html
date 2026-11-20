@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f6f6ef">
   {% if yandex_panorama_key %}<meta name="referrer" content="strict-origin-when-cross-origin">{% endif %}
-  <title>{% block title %}Muralium — город как холст{% endblock %}</title>
+  <title>{% block title %}Murrralium — город как холст{% endblock %}</title>
+  <link rel="icon" href="{% static 'logo.svg' %}" type="image/svg+xml">
   <script src="{% static 'js/theme.js' %}"></script>
   <link rel="stylesheet" href="{% static 'css/main.css' %}">
   {% block head %}{% endblock %}
@@ -13,7 +14,7 @@
 <body>
 <header class="site-header">
   <div class="container header-inner">
-    <a class="brand" href="{% url 'home' %}" aria-label="Muralium — главная"><span class="brand-mark" aria-hidden="true"></span>Muralium<span class="brand-period">.</span></a>
+    <a class="brand" href="{% url 'home' %}" aria-label="Murrralium — главная"><img class="brand-mark" src="{% static 'logo.svg' %}" width="30" height="32" alt="">Murrralium</a>
     <nav aria-label="Основная навигация">
       <a href="{% url 'home' %}#projects"{% if request.resolver_match.url_name == "home" %} aria-current="page"{% endif %}>Проекты</a>
       <a href="{% url 'map' %}"{% if request.resolver_match.url_name == "map" %} aria-current="page"{% endif %}>Карта</a>
@@ -51,7 +52,7 @@
   {% block content %}{% endblock %}
 </main>
 <footer class="site-footer">
-  <div class="container footer-inner"><a class="brand" href="{% url 'home' %}">Muralium<span class="brand-period">.</span></a><span>Виртуальные муралы Саратова</span></div>
+  <div class="container footer-inner"><a class="brand" href="{% url 'home' %}">Murrralium</a><span>Виртуальные муралы Саратова</span></div>
 </footer>
 {% if yandex_panorama_key %}{% include "street_walk_dialog.html" %}{% endif %}
 <script defer src="{% static 'js/interactions.js' %}"></script>

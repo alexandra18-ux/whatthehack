@@ -5,7 +5,7 @@ from django.utils.html import format_html
 from .moderation import ModerationForm, prepare_decision, record_decision
 from .models import Placement, can_moderate
 
-admin.site.site_header = "Muralium · управление"
+admin.site.site_header = "Murrralium · управление"
 
 
 class ModerationStatusFilter(admin.SimpleListFilter):

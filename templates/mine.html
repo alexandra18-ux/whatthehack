@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Личный кабинет · Muralium{% endblock %}
+{% block title %}Личный кабинет · Murrralium{% endblock %}
 {% block content %}
 {% include "profile_header.html" with own_profile=True %}
 <form class="account-logout" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="button outline compact">Выйти</button></form>
