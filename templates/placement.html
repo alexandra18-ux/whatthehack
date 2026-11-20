@@ -43,7 +43,7 @@
 </div>
 {% include "panorama_credit.html" with panorama=project.facade_photo.panorama %}
 {% if published %}
-<p class="project-feed-return"><a class="button outline" href="{% url 'home' %}?post={{ project.pk }}#projects">← Вернуться к ленте</a></p>
+<p class="project-feed-return"><a class="button outline" href="{% url 'home' %}#project-{{ project.pk }}">← Вернуться к ленте</a></p>
 {% endif %}
 <div class="project-description">{{ project.description|linebreaks }}<a class="button outline" href="{% url 'map' %}?building={{ project.building_id }}">Здание на карте</a></div>
 {% if published %}{% include "rating.html" %}{% endif %}

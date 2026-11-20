@@ -14,7 +14,7 @@
 <body>
 <header class="site-header">
   <div class="container header-inner">
-    <a class="brand" href="{% url 'home' %}" aria-label="Murrralium — главная"><img class="brand-mark" src="{% static 'logo.svg' %}" width="36" height="38" alt="">Murrralium</a>
+    <span class="brand"><img class="brand-mark" src="{% static 'logo.svg' %}" width="36" height="38" alt="">Murrralium</span>
     <nav aria-label="Основная навигация">
       <a href="{% url 'home' %}#projects"{% if request.resolver_match.url_name == "home" %} aria-current="page"{% endif %}>Проекты</a>
       <a href="{% url 'map' %}"{% if request.resolver_match.url_name == "map" %} aria-current="page"{% endif %}>Карта</a>
@@ -63,7 +63,7 @@
   {% block content %}{% endblock %}
 </main>
 <footer class="site-footer">
-  <div class="container footer-inner"><a class="brand" href="{% url 'home' %}">Murrralium</a><span>Виртуальные муралы Саратова</span></div>
+  <div class="container footer-inner"><span class="brand">Murrralium</span><span>Виртуальные муралы Саратова</span></div>
 </footer>
 <script defer src="{% static 'js/interactions.js' %}"></script>
 {% if user.is_authenticated %}<script defer src="{% static 'js/account.js' %}"></script>{% endif %}

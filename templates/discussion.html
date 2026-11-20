@@ -32,6 +32,7 @@
   </ul>
   {% if in_feed %}
   <a class="button outline compact" href="{% url 'placement' project.pk %}#comments">Посмотреть все комментарии</a>
+  {% include "rating.html" %}
   {% else %}
   {% include "pagination.html" with anchor="comments" %}
   {% endif %}
