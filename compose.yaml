@@ -21,7 +21,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-muralium}
       POSTGRES_USER: ${POSTGRES_USER:-muralium}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-muralium-local}
-      YANDEX_MAPS_API_KEY: ${YANDEX_MAPS_API_KEY:-}
+      MAP_TILE_URL: ${MAP_TILE_URL:-}
     depends_on:
       db:
         condition: service_healthy

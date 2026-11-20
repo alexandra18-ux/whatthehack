@@ -89,4 +89,4 @@ MEDIA_ROOT = BASE_DIR / "media"
 # Images are served through access-checked views, with no MEDIA_URL route.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-YANDEX_MAPS_API_KEY = os.getenv("YANDEX_MAPS_API_KEY", "")
+MAP_TILE_URL = os.getenv("MAP_TILE_URL") or "https://tile.openstreetmap.org/{z}/{x}/{y}.png"

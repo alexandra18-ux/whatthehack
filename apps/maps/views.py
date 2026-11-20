@@ -5,8 +5,11 @@ from apps.buildings.models import Building
 
 
 def maps(request):
-    return render(request, "map.html", {
+    response = render(request, "map.html", {
         "buildings": Building.objects.all(),
-        "maps_key": settings.YANDEX_MAPS_API_KEY,
+        "map_tile_url": settings.MAP_TILE_URL,
         "selected_building": request.GET.get("building", ""),
     })
+    # The tile service needs the app origin, while the page path can stay private.
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response

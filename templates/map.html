@@ -1,14 +1,22 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}Карта Саратова · Muralium{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endblock %}
 {% block content %}
 <header class="page-heading"><h1>Карта Саратова</h1><p>Выберите фасад из списка или укажите новое здание.</p></header>
 <div class="map-layout">
   <section class="map-panel" aria-label="Карта и выбор точки">
     <div id="city-map" class="city-map" aria-label="Интерактивная карта Саратова"
          data-buildings="{% url 'buildings_api' %}" data-projects="{% url 'map_api' %}"
-         data-new-building="{% url 'building_add' %}" data-selected="{{ selected_building }}"></div>
-    <div class="map-hint" id="map-hint" role="status">{% if maps_key %}Загружаем Яндекс Карты…{% else %}Для интерактивной карты нужен ключ Яндекс Карт. Здания можно выбрать в списке.{% endif %}</div>
-    <a id="map-add" class="button lime map-add" hidden>Добавить здание в этой точке</a>
+         data-new-building="{% url 'building_add' %}" data-selected="{{ selected_building }}"
+         data-tile-url="{{ map_tile_url }}"></div>
+    <div class="map-footer">
+      <div class="map-legend" aria-label="Обозначения карты">
+        <span><i aria-hidden="true"></i>Здание</span>
+        <span><i class="map-legend-project" aria-hidden="true"></i>Здание с проектами</span>
+      </div>
+      <p class="map-hint" id="map-hint" role="status">Здание можно выбрать в списке.</p>
+      <a id="map-add" class="button lime" hidden>Добавить здание в этой точке</a>
+    </div>
   </section>
   <aside class="panel building-list">
     <h2>Здания</h2>
@@ -22,8 +30,6 @@
 </div>
 {% endblock %}
 {% block scripts %}
-{% if maps_key %}
-<script defer src="https://api-maps.yandex.ru/2.1/?apikey={{ maps_key|urlencode }}&amp;lang=ru_RU"></script>
+<script defer src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
 <script defer src="{% static 'js/map.js' %}"></script>
-{% endif %}
 {% endblock %}
