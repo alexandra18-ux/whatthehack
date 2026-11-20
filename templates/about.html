@@ -1,20 +1,33 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}О проекте · Murrralium{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/about.css' %}">{% endblock %}
 {% block content %}
-<header class="page-heading">
-  <h1>О проекте Murrralium</h1>
-  <p>Галерея виртуальных муралов Саратова. Здесь можно примерить эскиз на фасад и обсудить идею с горожанами.</p>
-</header>
-<section class="panel about-content">
-  <h2>От адреса до публикации</h2>
-  <ol>
-    <li>Найдите здание на карте Саратова по улице и номеру дома.</li>
-    <li>Выберите или загрузите фотографию фасада и эскиз. Расставьте четыре точки по углам стены, чтобы подогнать эскиз под перспективу.</li>
-    <li>Отправьте работу на модерацию. После одобрения она появится в ленте и на карте. Участники смогут оценить её и оставить комментарий.</li>
-  </ol>
-  <div class="about-actions">
-    <a class="button lime" href="{% url 'map' %}">Выбрать здание</a>
-    <a class="button outline" href="{% url 'home' %}#projects">Открыть ленту</a>
-  </div>
+<section class="about-intro" aria-labelledby="about-title">
+  <header class="about-intro-copy">
+    <h1 id="about-title">О проекте</h1>
+    <p><strong>Muralium</strong> — проект о том, как уличное искусство может менять облик Саратова и Саратовской области.</p>
+    <p>Мы создали его за <strong>34 часа</strong> на хакатоне <strong>WhatTheHack</strong> командой под названием <strong>Full stack family</strong>, состоящей из четырёх разработчиков.</p>
+  </header>
+  <figure class="about-example">
+    <img src="{% static 'images/about-volga-wind.webp' %}" width="1200" height="760" alt="Эскиз с волнами и солнцем, наложенный на фасад здания">
+    <figcaption>«Волжский ветер» · пример виртуального мурала</figcaption>
+  </figure>
 </section>
+
+<div class="about-sections">
+  <section class="panel about-section" aria-labelledby="about-use-title">
+    <h2 id="about-use-title">От адреса до публикации</h2>
+    <p>На карте можно выбрать здание и примерить эскиз мурала к фасаду, чтобы увидеть, как он будет выглядеть на реальной улице. Авторы могут публиковать свои работы, а жители — обсуждать их и оценивать.</p>
+    <p>В редакторе укажите четыре угла стены, чтобы подогнать эскиз под перспективу. После модерации работа появится в ленте и на карте.</p>
+    <div class="about-actions">
+      <a class="button lime" href="{% url 'map' %}">Выбрать здание</a>
+      <a class="button outline" href="{% url 'home' %}#projects">Открыть ленту</a>
+    </div>
+  </section>
+  <section class="panel about-section about-mission" aria-labelledby="about-mission-title">
+    <h2 id="about-mission-title">Зачем мы создали Muralium</h2>
+    <p>Мы хотим, чтобы у жителей и художников было место, где можно предлагать идеи для благоустройства и вместе обсуждать, какими они хотят видеть свои улицы.</p>
+  </section>
+</div>
 {% endblock %}
