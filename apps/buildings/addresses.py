@@ -15,7 +15,6 @@ from django.core import signing
 from django.core.cache import cache
 
 SOUTH, WEST, NORTH, EAST = map(Decimal, ("51.392", "45.805", "51.686", "46.210"))
-CITY_BOUNDS = [[float(SOUTH), float(WEST)], [float(NORTH), float(EAST)]]
 CITY_FILTER = {
     "latitude__range": (SOUTH, NORTH),
     "longitude__range": (WEST, EAST),

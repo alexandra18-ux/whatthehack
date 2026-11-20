@@ -259,6 +259,8 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .address-catalog { align-self: start; max-width: 100%; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .address-catalog summary { cursor: pointer; font-size: .875rem; color: var(--muted); }
 .address-catalog .building-row { margin-block-start: 6px; }
+.map-views { display: flex; flex-wrap: wrap; gap: 6px; }
+.map-views .button { background: var(--surface); }
 .building-row { position: relative; display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
 .building-row:hover { background: var(--row-hover); }
 .pin { flex: 0 0 13px; width: 13px; height: 13px; border: 3px solid var(--pin); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
