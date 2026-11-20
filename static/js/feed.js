@@ -35,17 +35,21 @@
         return replacement;
     }
 
+    async function prepareCover(fragment) {
+        const source = fragment.querySelector(".feed-cover img")?.getAttribute("src");
+        if (!source) return;
+        const image = new Image();
+        image.src = source;
+        await image.decode().catch(() => {});
+    }
+
     function preload(url) {
         if (adjacent.has(url)) return adjacent.get(url);
         const controller = new AbortController();
         const entry = { controller };
-        entry.request = loadFeed(url, controller.signal).then((fragment) => {
+        entry.request = loadFeed(url, controller.signal).then(async (fragment) => {
+            await prepareCover(fragment);
             entry.fragment = fragment;
-            const source = fragment.querySelector(".feed-cover img")?.getAttribute("src");
-            if (source) {
-                entry.image = new Image();
-                entry.image.src = source;
-            }
             return fragment;
         }).catch(() => null);
         adjacent.set(url, entry);
@@ -82,7 +86,7 @@
     function updateDrag(current) {
         if (reducedMotion.matches) return;
         const limit = current.pointer === undefined ? 110 : Infinity;
-        const distance = Math.min(Math.abs(current.distance), limit, current.travel * .85 || 24);
+        const distance = Math.min(Math.abs(current.distance), limit, (current.travel || 0) * .85);
         current.offset = Math.sign(current.distance) * distance;
         current.post.style.transform = y(current.offset);
         if (current.preview) current.preview.style.transform = y(current.offset + current.previewStart);
@@ -111,10 +115,9 @@
                     makePreview(preview);
                     current.post.before(preview);
                     current.preview = preview;
-                    current.travel = direction === "next"
-                        ? current.post.offsetHeight : preview.offsetHeight;
+                    current.travel = current.post.getBoundingClientRect().height;
                     current.previewStart = direction === "next" ? current.travel : -current.travel;
-                    preview.style.transform = y((current.offset || 0) + current.previewStart);
+                    updateDrag(current);
                 };
                 if (entry.fragment) showPreview(entry.fragment);
                 else entry.request.then(showPreview);
@@ -162,35 +165,18 @@
     }
 
     async function slideTo(incoming, outgoing, direction, offset, signal) {
-        const viewport = incoming.parentElement;
         makePreview(outgoing);
-        viewport.prepend(outgoing);
-        const travel = viewport.clientHeight * (direction === "next" ? -1 : 1);
+        const travel = incoming.getBoundingClientRect().height * (direction === "next" ? -1 : 1);
         const start = Math.sign(travel) * Math.min(Math.abs(offset), Math.abs(travel));
         const duration = offset ? 285 : 370;
         const animations = [
             animate(outgoing, "transform", y(start), y(travel), duration),
             animate(incoming, "transform", y(start - travel), y(0), duration),
         ];
-        for (const animation of animations) {
-            animation.pause();
-            animation.currentTime = 0;
-        }
-        const finish = Promise.allSettled(animations.map((animation) => animation.finished));
         const cancel = () => animations.forEach((animation) => animation.cancel());
         signal.addEventListener("abort", cancel, { once: true });
         try {
-            const image = incoming.querySelector(".feed-cover img");
-            if (image && !image.complete) {
-                await Promise.race([
-                    image.decode().catch(() => {}),
-                    new Promise((resolve) => setTimeout(resolve, 140)),
-                ]);
-            }
-            if (!signal.aborted) {
-                animations.forEach((animation) => animation.play());
-                await finish;
-            }
+            await Promise.allSettled(animations.map((animation) => animation.finished));
         } finally {
             signal.removeEventListener("abort", cancel);
             outgoing.remove();
@@ -213,24 +199,30 @@
         try {
             const cached = adjacent.get(url);
             adjacent.delete(url);
-            const replacement = (cached && await cached.request) ?? await loadFeed(url, controller.signal);
+            let replacement = cached && await cached.request;
+            if (!replacement) {
+                replacement = await loadFeed(url, controller.signal);
+                await prepareCover(replacement);
+            }
             if (controller.signal.aborted) return;
             const outgoing = activePost();
             const viewport = outgoing?.parentElement;
             const incoming = replacement.querySelector(".feed-post");
+            const shouldSlide = direction && outgoing && incoming && !reducedMotion.matches;
             const offset = drag?.offset || 0;
             if (drag) releaseGesture(drag);
             if (!fromHistory) history.pushState(null, "", url);
             // Keep the wheel viewport mounted. Chromium can latch a wheel gesture to it.
             if (viewport && incoming) {
-                outgoing.replaceWith(incoming);
+                if (shouldSlide) outgoing.after(incoming);
+                else outgoing.replaceWith(incoming);
                 feed.dataset.post = replacement.dataset.post;
             } else {
                 replacement.setAttribute("aria-busy", "true");
                 feed.replaceWith(replacement);
                 feed = replacement;
             }
-            if (direction && outgoing && incoming && !reducedMotion.matches) {
+            if (shouldSlide) {
                 await slideTo(incoming, outgoing, direction, offset, controller.signal);
             }
             if (controller.signal.aborted) return;

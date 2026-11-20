@@ -38,7 +38,7 @@ function orderedOutline(corners) {
         const c = ordered[(i + 2) % 4];
         return (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
     });
-    if (turns.some((turn) => turn <= 1e-5) || turns.reduce((sum, turn) => sum + turn, 0) < 0.004) return null;
+    if (turns.some((turn) => turn <= 0)) return null;
     return ordered;
 }
 
@@ -62,7 +62,7 @@ function refreshControls() {
     if (mode === "after") {
         help.textContent = "Нажмите «До», чтобы скорректировать углы.";
     } else if (points.length === 4 && !outline) {
-        help.textContent = "Разведите точки так, чтобы они стали четырьмя внешними углами стены.";
+        help.textContent = "Переместите точки на четыре внешних угла стены. Три точки не должны лежать на одной линии.";
     } else if (outline) {
         help.textContent = "Перетащите угол или выберите его клавишей Tab. Стрелки сдвигают точку на пиксель, Shift со стрелкой — на 10.";
     } else {
@@ -151,13 +151,7 @@ function clampPoint({ x, y }) {
 function movePoint(index, position) {
     const point = clampPoint(position);
     if (point.x === points[index].x && point.y === points[index].y) return;
-    const next = [...points];
-    next[index] = point;
-    if (outline && !orderedOutline(next)) {
-        setMessage("Этот угол должен остаться снаружи контура.", true);
-        return;
-    }
-    points = next;
+    points[index] = point;
     syncPoints();
 }
 
