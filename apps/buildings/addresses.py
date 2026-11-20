@@ -53,6 +53,18 @@ def in_city(latitude, longitude):
     )
 
 
+def street_walk_url(latitude, longitude):
+    point = f"{longitude},{latitude}"
+    query = urlencode({
+        "l": "stv,sta",
+        "ll": point,
+        "panorama[point]": point,
+        "panorama[full]": "true",
+        "z": 17,
+    })
+    return f"https://yandex.ru/maps/194/saratov/?{query}"
+
+
 @dataclass(frozen=True)
 class SaratovAddress:
     ref: str
@@ -64,6 +76,10 @@ class SaratovAddress:
     @property
     def label(self):
         return f"{self.street}, {self.number}"
+
+    @property
+    def street_walk_url(self):
+        return street_walk_url(self.latitude, self.longitude)
 
     @property
     def ticket(self):

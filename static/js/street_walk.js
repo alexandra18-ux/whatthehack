@@ -3,9 +3,13 @@
     const playerElement = dialog?.querySelector(".street-walk-player");
     const status = dialog?.querySelector(".street-walk-status");
     const external = dialog?.querySelector("[data-street-walk-external]");
+    const retry = dialog?.querySelector("[data-street-walk-retry]");
+    const step = dialog?.querySelector("[data-street-walk-step]");
+    const stepStatus = dialog?.querySelector("[data-street-walk-step-status]");
     let sdk;
     let player;
     let current;
+    let selectedPoint;
 
     function loadSDK() {
         if (sdk) return sdk;
@@ -13,6 +17,7 @@
         const url = new URL("https://api-maps.yandex.ru/2.1/");
         url.searchParams.set("lang", "ru_RU");
         url.searchParams.set("apikey", dialog.dataset.apiKey);
+        url.searchParams.set("load", "panorama.locate,panorama.Player,panorama.isSupported");
         script.src = url.href;
         script.referrerPolicy = "strict-origin-when-cross-origin";
 
@@ -40,9 +45,14 @@
         return sdk;
     }
 
-    function showStatus(message) {
+    function showStatus(message, canRetry = false) {
         status.textContent = message;
         status.hidden = !message;
+        retry.hidden = !canRetry;
+    }
+
+    function publishCamera(camera = null, viewpoint = null) {
+        dialog.dispatchEvent(new CustomEvent("panorama:camera", { detail: { camera, viewpoint } }));
     }
 
     function stop() {
@@ -50,21 +60,27 @@
         current = null;
         player?.destroy();
         player = null;
+        step.hidden = true;
+        step.disabled = false;
+        stepStatus.hidden = true;
         playerElement.replaceChildren();
+        publishCamera();
     }
 
     async function showPanorama(link, point) {
         stop();
         const request = new AbortController();
         current = request;
+        selectedPoint = point;
         external.href = link.href;
         showStatus("Загружаем панораму…");
-        dialog.showModal();
+        if (!dialog.open) dialog.showModal();
         const timer = setTimeout(() => {
             if (request.signal.aborted) return;
             request.abort();
-            showStatus("Панорама долго загружается. Откройте её в Яндекс Картах или попробуйте ещё раз.");
+            showStatus("Яндекс долго загружает панораму.", true);
         }, 18000);
+        let stage = "sdk";
         try {
             const api = await loadSDK();
             if (request.signal.aborted) return;
@@ -72,29 +88,94 @@
                 showStatus("В этом браузере панораму можно открыть в Яндекс Картах.");
                 return;
             }
+            stage = "locate";
             const [nearest] = await api.panorama.locate(point);
             if (request.signal.aborted) return;
             if (!nearest) {
                 showStatus("Рядом с этой точкой панорама не найдена. Посмотрите доступные улицы в Яндекс Картах.");
                 return;
             }
+            stage = "player";
             player = new api.panorama.Player(playerElement, nearest, {
                 controls: ["fullscreenControl", "panoramaName", "zoomControl"],
                 hotkeysEnabled: true,
             });
+            const activePlayer = player;
+            let scheduled = false;
+            function syncStep() {
+                step.hidden = !activePlayer.getPanorama().getConnectionArrows().length;
+                stepStatus.hidden = true;
+            }
+            function syncCamera() {
+                if (scheduled) return;
+                scheduled = true;
+                requestAnimationFrame(() => {
+                    scheduled = false;
+                    if (request.signal.aborted || player !== activePlayer) return;
+                    const [yaw, pitch] = activePlayer.getDirection();
+                    const [, fov] = activePlayer.getSpan();
+                    if ([yaw, pitch, fov].every(Number.isFinite) && fov > 0 && fov < 180) {
+                        publishCamera([yaw, pitch, fov], activePlayer.getPanorama());
+                    }
+                });
+            }
+            for (const event of ["directionchange", "spanchange", "panoramachange", "fullscreenexit"]) {
+                activePlayer.events.add(event, syncCamera);
+            }
+            activePlayer.events.add("panoramachange", syncStep);
             player.events.add("error", () => {
-                if (!request.signal.aborted) showStatus("Не удалось загрузить ракурс. Откройте панораму в Яндекс Картах.");
+                if (request.signal.aborted) return;
+                publishCamera();
+                step.hidden = true;
+                showStatus("Не удалось загрузить ракурс в плеере Яндекса.", true);
             });
             showStatus("");
+            syncStep();
+            syncCamera();
         } catch {
-            if (!request.signal.aborted) showStatus("Панорама недоступна. Попробуйте открыть её в Яндекс Картах.");
+            if (request.signal.aborted) return;
+            const messages = {
+                sdk: "Не удалось подключить сервис Яндекс Карт.",
+                locate: "Сервис Яндекса не вернул панораму для этой точки.",
+                player: "Не удалось запустить плеер Яндекс Панорам.",
+            };
+            showStatus(messages[stage], true);
         } finally {
             clearTimeout(timer);
         }
     }
 
     dialog?.addEventListener("close", () => {
-        if (!dialog.open) stop();
+        if (!dialog.open) {
+            stop();
+            selectedPoint = null;
+        }
+    });
+    retry?.addEventListener("click", () => {
+        if (selectedPoint) showPanorama(external, selectedPoint);
+    });
+    step?.addEventListener("click", async () => {
+        const activePlayer = player;
+        const panorama = activePlayer?.getPanorama();
+        const arrows = panorama?.getConnectionArrows();
+        if (!arrows?.length) return;
+
+        const [bearing] = activePlayer.getDirection();
+        const distance = (arrow) => Math.abs(((arrow.getDirection()[0] - bearing + 540) % 360) - 180);
+        const arrow = arrows.reduce((closest, candidate) => distance(candidate) < distance(closest) ? candidate : closest);
+        step.disabled = true;
+        stepStatus.hidden = false;
+        stepStatus.textContent = "Переходим к соседней точке…";
+        try {
+            const next = await arrow.getConnectedPanorama();
+            if (player !== activePlayer || panorama !== activePlayer.getPanorama()) return;
+            await activePlayer.setPanorama(next);
+            stepStatus.hidden = true;
+        } catch {
+            if (player === activePlayer) stepStatus.textContent = "Не удалось перейти к соседней точке. Попробуйте ещё раз.";
+        } finally {
+            if (player === activePlayer) step.disabled = false;
+        }
     });
 
     document.addEventListener("click", (event) => {

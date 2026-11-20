@@ -22,6 +22,9 @@ class MapPageTests(TestCase):
             self.assertContains(response, 'id="street-walk-dialog"')
             self.assertContains(response, 'data-api-key="test-browser-key"')
             self.assertNotContains(response, "api-maps.yandex.ru")
+            building = Building.objects.create(address="Московская улица, 55", latitude=51.532716, longitude=46.039064)
+            detail = self.client.get(reverse("building", args=[building.pk]))
+            self.assertEqual(detail.headers["Referrer-Policy"], "strict-origin-when-cross-origin")
 
     def test_map_sends_site_origin_to_public_tile_server(self):
         response = self.client.get(reverse("map"))
@@ -49,6 +52,7 @@ class MapPageTests(TestCase):
         request = {"address": "Московская, 55"}
         response = self.client.get(reverse("map"), request)
         self.assertContains(response, "Московская улица, 55")
+        self.assertContains(response, 'panorama%5Bpoint%5D=46.039064%2C51.532716')
         self.assertEqual([match.ref for match in response.context["matches"]], ["w100909666"])
         match, = find_addresses(request["address"])
         self.assertEqual(urlopen.call_count, 1)

@@ -21,7 +21,7 @@
     let drag;
 
     function failed() {
-        status.textContent = "Ракурс не загрузился. Попробуйте ещё раз или откройте прогулку в Яндекс Картах.";
+        status.textContent = "Ракурс не загрузился. Попробуйте повернуть панораму ещё раз.";
     }
 
     image.addEventListener("error", failed);
@@ -41,6 +41,7 @@
                 await next.decode();
                 image.src = next.src;
                 displayed = camera;
+                viewer.dispatchEvent(new CustomEvent("panorama:camera", { detail: { camera } }));
                 editorUrl.searchParams.set("camera", query);
                 editor.href = editorUrl.href;
                 status.textContent = "";

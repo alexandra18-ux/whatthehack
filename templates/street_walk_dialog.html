@@ -1,11 +1,20 @@
-<dialog id="street-walk-dialog" class="panorama-dialog street-walk-dialog panel" data-api-key="{{ yandex_panorama_key }}" aria-labelledby="street-walk-title">
+<dialog id="street-walk-dialog" class="panorama-dialog street-walk-dialog panel" data-api-key="{{ yandex_panorama_key }}"
+        data-panorama-try-on aria-labelledby="street-walk-title">
   <header class="panorama-header">
     <h2 id="street-walk-title">Панорама улицы</h2>
     <form method="dialog"><button class="button outline compact">Закрыть</button></form>
   </header>
-  <div class="street-walk-viewport">
+  <div class="street-walk-viewport panorama-try-on-stage">
     <div class="street-walk-player" aria-label="Интерактивная панорама Яндекс Карт"></div>
+    {% include "panorama_try_on_layer.html" %}
     <p class="street-walk-status" role="status">Загружаем панораму…</p>
   </div>
-  <a class="button outline compact" data-street-walk-external target="_blank" rel="noopener noreferrer">Открыть в Яндекс Картах ↗</a>
+  <div class="address-actions">
+    <button class="button outline compact" type="button" data-street-walk-step hidden>Следующая точка →</button>
+    <button class="button lime compact" type="button" data-try-on-start hidden>Примерить на стене</button>
+    <button class="button outline compact" type="button" data-street-walk-retry hidden>Повторить загрузку</button>
+    <a class="button outline compact" data-street-walk-external target="_blank" rel="noopener noreferrer">Открыть в Яндекс Картах ↗</a>
+  </div>
+  <p class="editor-help" data-street-walk-step-status role="status" hidden></p>
+  {% include "panorama_try_on_controls.html" with prefix="street-walk" capture_label="Зафиксировать стену" designs=street_walk_designs %}
 </dialog>
