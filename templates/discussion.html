@@ -15,11 +15,23 @@
         <button class="button outline compact" type="submit">Удалить комментарий</button>
       </form>
       {% endif %}
+      {% if user.is_authenticated %}
+      <form method="post" action="{% url 'like_comment' entry.pk %}" class="comment-like">
+        {% csrf_token %}
+        {% if in_feed %}<input type="hidden" name="source" value="feed">{% endif %}
+        <button type="submit" name="liked" value="{% if entry.viewer_liked %}0{% else %}1{% endif %}"
+                aria-label="Нравится, всего {{ entry.like_count }}" aria-pressed="{{ entry.viewer_liked|yesno:'true,false' }}">
+          <span aria-hidden="true">{% if entry.viewer_liked %}♥{% else %}♡{% endif %}</span> {{ entry.like_count }}
+        </button>
+      </form>
+      {% elif entry.like_count %}
+      <span class="comment-like-count" aria-label="Нравится, всего {{ entry.like_count }}">♡ {{ entry.like_count }}</span>
+      {% endif %}
     </li>
     {% empty %}<li class="no-comments">Комментариев пока нет.</li>{% endfor %}
   </ul>
   {% if in_feed %}
-  <a class="back-link" href="{% url 'placement' project.pk %}#comments">Все комментарии</a>
+  <a class="button outline compact" href="{% url 'placement' project.pk %}#comments">Посмотреть все комментарии</a>
   {% else %}
   {% include "pagination.html" with anchor="comments" %}
   {% endif %}

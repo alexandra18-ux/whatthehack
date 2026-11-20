@@ -35,7 +35,7 @@ def read_image(source, *, transparent=False):
 
 
 def validate_corners(corners):
-    message = "Укажите четыре угла по часовой стрелке, начиная с верхнего левого."
+    message = "Укажите четыре угла стены."
     if not isinstance(corners, list) or len(corners) != 4:
         raise ValidationError(message)
 
@@ -48,24 +48,29 @@ def validate_corners(corners):
                 raise ValidationError("Координаты углов должны быть числами от 0 до 1.")
 
     points = np.array([[corner["x"], corner["y"]] for corner in corners], dtype=np.float64)
+    center = points.mean(axis=0)
+    points = points[np.argsort(np.arctan2(points[:, 1] - center[1], points[:, 0] - center[0]))]
     edges = np.roll(points, -1, axis=0) - points
     next_edges = np.roll(edges, -1, axis=0)
     turns = edges[:, 0] * next_edges[:, 1] - edges[:, 1] * next_edges[:, 0]
-    if (turns <= 1e-5).any() or turns.sum() < 0.004:
-        raise ValidationError("Область стены должна быть выпуклой и достаточно большой.")
-    return points
+    if (turns <= 0).any():
+        raise ValidationError("Отметьте четыре разных внешних угла стены. Три угла не должны лежать на одной линии.")
+    start = min(range(4), key=lambda i: (sum(points[i]), points[i, 0]))
+    return np.roll(points, -start, axis=0)
 
 
 def render_placement(facade, mural, corners):
     width, height = facade.size
     mural_width, mural_height = mural.size
-    destination = validate_corners(corners) * [width - 1, height - 1]
+    destination = (validate_corners(corners) * [width - 1, height - 1]).astype(np.float32)
+    if not cv2.isContourConvex(destination) or cv2.contourArea(destination) < 1:
+        raise ValidationError("Область слишком мала для этого фото. Раздвиньте углы стены.")
     source = [[0, 0], [mural_width - 1, 0],
               [mural_width - 1, mural_height - 1], [0, mural_height - 1]]
 
     try:
         matrix = cv2.getPerspectiveTransform(
-            np.asarray(source, dtype=np.float32), destination.astype(np.float32),
+            np.asarray(source, dtype=np.float32), destination,
         )
         # Premultiply before interpolation to avoid dark edges on transparent PNGs.
         overlay = np.asarray(mural, dtype=np.float32) / 255

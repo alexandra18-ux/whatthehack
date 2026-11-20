@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path
+from django.views.generic import TemplateView
 
 from apps.buildings import views as buildings
 from apps.maps.views import maps
@@ -10,6 +11,7 @@ from apps.users import views as users
 
 urlpatterns = [
     path("", placements.home, name="home"),
+    path("about/", TemplateView.as_view(template_name="about.html"), name="about"),
     path("admin/", admin.site.urls),
     path("moderation/", moderation.queue, name="moderation_queue"),
     path("moderation/history/", moderation.history, name="moderation_history"),
@@ -33,9 +35,11 @@ urlpatterns = [
     path("placements/<int:revision_pk>/revise/preview/", placements.preview, name="revision_preview"),
     path("placements/<int:pk>/rating/", placements.rate, name="rate"),
     path("placements/<int:pk>/comments/", placements.comment, name="comment"),
+    path("comments/<int:pk>/like/", placements.like_comment, name="like_comment"),
     path("placements/<int:pk>/image/<str:kind>/", placements.project_image, name="project_image"),
     path("images/<str:kind>/<int:pk>/", placements.asset, name="asset"),
     path("api/buildings/", buildings.buildings_api, name="buildings_api"),
+    path("api/buildings/address/", buildings.map_address, name="map_address"),
     path("api/buildings/<int:pk>/facades/", buildings.catalog, {"kind": "facade"}, name="facades_api"),
     path("api/buildings/<int:pk>/designs/", buildings.catalog, {"kind": "design"}, name="designs_api"),
     path("api/placements/map/", placements.map_api, name="map_api"),
