@@ -23,6 +23,7 @@
             <button class="button outline compact" type="button" data-address-point
                     data-latitude="{{ address.latitude|unlocalize }}"
                     data-longitude="{{ address.longitude|unlocalize }}" aria-pressed="false" hidden>На карте</button>
+            {% include "street_walk_link.html" with street_walk_url=address.street_walk_url %}
             {% if user.is_authenticated %}
             <form method="post" action="{% url 'building_add' %}">
               {% csrf_token %}

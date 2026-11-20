@@ -11,21 +11,16 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
 
-from .addresses import AddressSearchUnavailable, CITY_FILTER, address_at, get_address, in_city
+from .addresses import AddressSearchUnavailable, CITY_FILTER, address_at, get_address, in_city, street_walk_url
 from .models import Building, Panorama
 from .panoramas import default_panorama_camera, nearby_panoramas, panorama_frame, parse_camera
 
 
-def street_walk_url(latitude, longitude):
-    point = f"{longitude},{latitude}"
-    yandex_query = urlencode({
-        "l": "stv,sta",
-        "ll": point,
-        "panorama[point]": point,
-        "panorama[full]": "true",
-        "z": 17,
-    })
-    return f"https://yandex.ru/maps/194/saratov/?{yandex_query}"
+def render_with_panorama(request, template, context):
+    response = render(request, template, {**context, "yandex_panorama_key": settings.YANDEX_MAPS_API_KEY})
+    if settings.YANDEX_MAPS_API_KEY:
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 
 def building_data(building):
@@ -76,7 +71,7 @@ def map_address(request):
     return JsonResponse({
         "address": address.label,
         "ticket": address.ticket,
-        "street_walk_url": street_walk_url(address.latitude, address.longitude),
+        "street_walk_url": address.street_walk_url,
     })
 
 
@@ -93,12 +88,12 @@ def detail(request, pk):
     from apps.placements.models import published_placements
 
     building = get_object_or_404(Building, pk=pk)
-    return render(request, "building.html", {
+    return render_with_panorama(request, "building.html", {
         "building": building,
         "facades": building.facades.filter(is_public=True),
         "has_panoramas": nearby_panoramas(building).exists(),
         "street_walk_url": street_walk_url(building.latitude, building.longitude),
-        "yandex_panorama_key": settings.YANDEX_MAPS_API_KEY,
+        "street_walk_designs": building.designs.filter(is_public=True).order_by("title", "pk"),
         "projects": published_placements().filter(building=building),
     })
 
@@ -115,15 +110,15 @@ def building_panorama(request, pk):
     except (ValidationError, OSError, ValueError):
         camera, span = None, None
     serialized = json.dumps(camera, separators=(",", ":"))
-    return render(request, "panorama_page.html", {
+    return render_with_panorama(request, "panorama_page.html", {
         "building": building,
         "panorama": panorama,
         "camera": camera,
         "span": span,
         "frame_url": f"{reverse('panorama_view', args=[panorama.pk])}?{urlencode({'camera': serialized, 'small': 1})}",
         "editor_url": f"{reverse('create')}?{urlencode({'building': pk, 'panorama_source': panorama.pk, 'camera': serialized})}",
+        "street_walk_designs": building.designs.filter(is_public=True).order_by("title", "pk"),
         "street_walk_url": street_walk_url(building.latitude, building.longitude),
-        "yandex_panorama_key": settings.YANDEX_MAPS_API_KEY,
     })
 
 
