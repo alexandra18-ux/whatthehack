@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Мои проекты · Muralium{% endblock %}
+{% block content %}
+<header class="page-heading"><h1>Мои проекты</h1><a class="button lime" href="{% url 'map' %}">Создать проект</a></header>
+{% include "project_grid.html" %}
+{% endblock %}

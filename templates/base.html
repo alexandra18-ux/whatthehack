@@ -1,0 +1,33 @@
+{% load static %}<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f6f6ef">
+  <title>{% block title %}Muralium — город как холст{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="{% url 'home' %}" aria-label="Muralium — главная"><span class="brand-mark" aria-hidden="true"></span>Muralium<span class="brand-period">.</span></a>
+    <nav aria-label="Основная навигация">
+      <a href="{% url 'home' %}#projects"{% if request.resolver_match.url_name == "home" %} aria-current="page"{% endif %}>Проекты</a>
+      <a href="{% url 'map' %}"{% if request.resolver_match.url_name == "map" %} aria-current="page"{% endif %}>Карта</a>
+      {% if user.is_authenticated %}<a href="{% url 'mine' %}"{% if request.resolver_match.url_name == "mine" %} aria-current="page"{% endif %}>Мои проекты</a>{% endif %}
+    </nav>
+    {% if user.is_authenticated %}
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="button outline compact">Выйти</button></form>
+    {% else %}
+      <a class="button outline compact" href="{% url 'login' %}">Войти</a>
+    {% endif %}
+  </div>
+</header>
+<main class="container main">{% block content %}{% endblock %}</main>
+<footer class="site-footer">
+  <div class="container footer-inner"><a class="brand" href="{% url 'home' %}">Muralium<span class="brand-period">.</span></a><span>Виртуальные муралы Саратова</span></div>
+</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>

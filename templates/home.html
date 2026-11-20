@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div class="hero-copy">
+    <p class="location"><span aria-hidden="true"></span>Саратов, Россия</p>
+    <h1>Город<br>как <em>холст.</em></h1>
+    <p class="hero-description">Примерьте мурал на фасад и покажите, как может измениться ваш город.</p>
+    <a class="button lime" href="{% url 'map' %}">Выбрать здание</a>
+  </div>
+  {% with project=projects.0 %}
+  {% if project %}
+  <a class="hero-image" href="{% url 'placement' project.pk %}">
+    <img src="{% url 'project_image' project.pk 'result' %}" alt="Виртуальный мурал «{{ project.title }}»">
+    <span class="image-caption">{{ project.title }}</span>
+  </a>
+  {% else %}
+  <div class="hero-placeholder" aria-hidden="true"><i></i><i></i><i></i></div>
+  {% endif %}
+  {% endwith %}
+</section>
+
+<section id="projects" class="section">
+  <header class="section-heading"><h2>Проекты на стенах</h2><a class="button outline" href="{% url 'map' %}">Смотреть на карте</a></header>
+  {% include "project_grid.html" %}
+</section>
+{% endblock %}

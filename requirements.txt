@@ -1,0 +1,7 @@
+Django==5.2.19
+psycopg[binary]==3.3.3
+Pillow==12.2.0
+numpy==2.4.3
+opencv-python-headless==4.13.0.92
+python-dotenv==1.2.2
+tzdata==2026.6

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ building.address }} · Muralium{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'map' %}?building={{ building.pk }}">К карте</a>
+<header class="page-heading">
+  <h1>{{ building.address }}</h1>
+  <a class="button lime" href="{% url 'create' %}?building={{ building.pk }}">Примерить мурал</a>
+</header>
+{% with photo=facades.0 %}{% if photo %}
+<img class="building-cover" src="{% url 'asset' 'facade' photo.pk %}" alt="Изображение фасада">
+{% endif %}{% endwith %}
+<section class="section"><header class="section-heading"><h2>Проекты здания</h2></header>{% include "project_grid.html" %}</section>
+{% endblock %}

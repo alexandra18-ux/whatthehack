@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Карта Саратова · Muralium{% endblock %}
+{% block content %}
+<header class="page-heading"><h1>Карта Саратова</h1><p>Выберите фасад из списка или укажите новое здание.</p></header>
+<div class="map-layout">
+  <section class="map-panel" aria-label="Карта и выбор точки">
+    <div id="city-map" class="city-map" aria-label="Интерактивная карта Саратова"
+         data-buildings="{% url 'buildings_api' %}" data-projects="{% url 'map_api' %}"
+         data-new-building="{% url 'building_add' %}" data-selected="{{ selected_building }}"></div>
+    <div class="map-hint" id="map-hint" role="status">{% if maps_key %}Загружаем Яндекс Карты…{% else %}Для интерактивной карты нужен ключ Яндекс Карт. Здания можно выбрать в списке.{% endif %}</div>
+    <a id="map-add" class="button lime map-add" hidden>Добавить здание в этой точке</a>
+  </section>
+  <aside class="panel building-list">
+    <h2>Здания</h2>
+    {% for building in buildings %}
+    <a href="{% url 'building' building.pk %}" class="building-row"><span class="pin" aria-hidden="true"></span><span>{{ building.address }}</span></a>
+    {% empty %}
+    <p>В каталоге пока нет зданий.</p>
+    {% endfor %}
+    <a class="button outline" href="{% url 'building_add' %}">Указать адрес и точку</a>
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}
+{% if maps_key %}
+<script defer src="https://api-maps.yandex.ru/2.1/?apikey={{ maps_key|urlencode }}&amp;lang=ru_RU"></script>
+<script defer src="{% static 'js/map.js' %}"></script>
+{% endif %}
+{% endblock %}

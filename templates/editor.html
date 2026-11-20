@@ -1,0 +1,51 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Редактор мурала · Muralium{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'building' building.pk %}">{{ building.address }}</a>
+<header class="page-heading"><h1>Редактор мурала</h1><p>Выберите фасад и эскиз, затем отметьте границы стены.</p></header>
+<form class="editor-layout" id="placement-editor" method="post" enctype="multipart/form-data"
+      data-preview="{% url 'preview' %}" data-facades="{% url 'facades_api' building.pk %}" data-designs="{% url 'designs_api' building.pk %}">
+  {% csrf_token %}
+  <input type="hidden" name="building" value="{{ building.pk }}">
+  {{ form.corners }}
+  <div class="editor-main">
+    <div class="editor-toolbar">
+      <div class="segmented" aria-label="Предпросмотр">
+        <button type="button" id="show-before" aria-pressed="true">До</button>
+        <button type="button" id="show-after" aria-pressed="false" disabled>После</button>
+      </div>
+      <button class="button outline compact" type="button" id="reset-corners" disabled>Сбросить точки</button>
+    </div>
+    <div class="canvas-frame">
+      <p id="canvas-empty">Выберите фотографию фасада</p>
+      <canvas id="editor-canvas" aria-label="Фасад. Укажите четыре угла стены." hidden></canvas>
+      <img id="preview-image" alt="Предпросмотр фасада с муралом" hidden>
+    </div>
+    <p class="editor-help" id="editor-help">Укажите четыре угла по часовой стрелке, начиная с верхнего левого.</p>
+    <p id="editor-message" class="editor-message" role="status"></p>
+    {{ form.non_field_errors }}{{ form.corners.errors }}
+    <noscript><p class="notice">Для редактора нужен JavaScript.</p></noscript>
+  </div>
+  <aside class="panel editor-panel">
+    <fieldset>
+      <legend>Фасад</legend>
+      {{ form.facade.as_field_group }}
+      {{ form.facade_file.as_field_group }}
+    </fieldset>
+    <fieldset>
+      <legend>Эскиз</legend>
+      {{ form.design.as_field_group }}
+      {{ form.mural_file.as_field_group }}
+      <img id="design-preview" class="design-preview" alt="Выбранный эскиз" hidden>
+    </fieldset>
+    <button id="render-preview" class="button outline" type="button" disabled>Посмотреть результат</button>
+    <fieldset>
+      <legend>Публикация</legend>
+      {{ form.title.as_field_group }}
+      {{ form.description.as_field_group }}
+    </fieldset>
+    <button class="button lime" id="submit-placement" disabled>Отправить на модерацию</button>
+  </aside>
+</form>
+{% endblock %}
+{% block scripts %}<script defer src="{% static 'js/placement_editor.js' %}"></script>{% endblock %}

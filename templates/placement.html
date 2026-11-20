@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}{{ project.title }} · Muralium{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'building' project.building_id %}">{{ project.building.address }}</a>
+<header class="page-heading">
+  <p class="status">{{ project.get_status_display }}</p>
+  <h1>{{ project.title }}</h1>
+  <p>{{ project.author.username }}{% if project.published_at %} · {{ project.published_at|date:"j E Y" }}{% endif %}</p>
+</header>
+{% if project.rejection_reason %}<p class="notice">{{ project.rejection_reason }}</p>{% endif %}
+<div class="comparison" data-comparison>
+  <div class="segmented" aria-label="Сравнение фасада">
+    <button type="button" data-show="before" aria-pressed="false">До</button>
+    <button type="button" data-show="after" aria-pressed="true">После</button>
+  </div>
+  <img class="building-cover" data-image="after" src="{% url 'project_image' project.pk 'result' %}" alt="Фасад с муралом">
+  <img class="building-cover" data-image="before" src="{% url 'project_image' project.pk 'before' %}" alt="Исходный фасад" loading="lazy" hidden>
+</div>
+<div class="project-description">{{ project.description|linebreaks }}<a class="button outline" href="{% url 'map' %}?building={{ project.building_id }}">Здание на карте</a></div>
+{% endblock %}
+{% block scripts %}<script defer src="{% static 'js/comparison.js' %}"></script>{% endblock %}

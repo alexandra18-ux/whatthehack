@@ -1,0 +1,17 @@
+<div class="project-grid">
+  {% for project in projects %}
+  <article class="project-card">
+    <a href="{% url 'placement' project.pk %}">
+      <img loading="lazy" src="{% url 'project_image' project.pk 'result' %}" alt="">
+      <div class="card-body">
+        <p class="card-location">{{ project.building.address }}</p>
+        <h3>{{ project.title }}</h3>
+        <p>{{ project.description|truncatechars:105 }}</p>
+        <p class="card-meta">{{ project.author.username }} · {% if project.published_at %}{{ project.published_at|date:"j M Y" }}{% else %}{{ project.get_status_display }}{% endif %}</p>
+      </div>
+    </a>
+  </article>
+  {% empty %}
+  <p class="empty">Здесь пока нет проектов. Выберите здание на карте, чтобы создать мурал.</p>
+  {% endfor %}
+</div>

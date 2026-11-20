@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Регистрация · Muralium{% endblock %}
+{% block content %}
+<section class="panel auth-panel">
+  <h1>Регистрация</h1>
+  <form method="post" class="field-stack">
+    {% csrf_token %}{{ form.as_p }}
+    <input type="hidden" name="next" value="{{ next }}">
+    <button class="button lime">Создать аккаунт</button>
+  </form>
+  <p>Уже есть аккаунт? <a class="back-link" href="{% url 'login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Войти</a></p>
+</section>
+{% endblock %}

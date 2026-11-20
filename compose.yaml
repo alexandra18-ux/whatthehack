@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-muralium}
+      POSTGRES_USER: ${POSTGRES_USER:-muralium}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-muralium-local}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+  web:
+    build: .
+    command: sh -c "python manage.py migrate && python manage.py seed_demo && python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DJANGO_DEBUG: "1"
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-muralium}
+      POSTGRES_USER: ${POSTGRES_USER:-muralium}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-muralium-local}
+      YANDEX_MAPS_API_KEY: ${YANDEX_MAPS_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - .:/app
+volumes:
+  database:
