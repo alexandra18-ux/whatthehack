@@ -2,8 +2,10 @@ from django import forms
 from django.conf import settings
 from django.shortcuts import render
 
-from apps.buildings.addresses import AddressSearchUnavailable, CITY_BOUNDS, city_boundary, find_addresses
+from apps.buildings.addresses import AddressSearchUnavailable, find_addresses
 from apps.buildings.views import city_buildings
+
+REGION_MAP_BOUNDS = [[49.75, 42.45], [52.9, 50.9]]
 
 
 class AddressSearchForm(forms.Form):
@@ -23,8 +25,7 @@ def maps(request):
             form.add_error("address", "Поиск временно недоступен. Повторите запрос чуть позже.")
     response = render(request, "map.html", {
         "buildings": city_buildings(),
-        "city_bounds": CITY_BOUNDS,
-        "city_boundary": city_boundary(),
+        "region_map_bounds": REGION_MAP_BOUNDS,
         "map_tile_url": settings.MAP_TILE_URL,
         "selected_building": request.GET.get("building", ""),
         "address_form": form,

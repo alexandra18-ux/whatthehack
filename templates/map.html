@@ -66,9 +66,13 @@
       <p>В каталоге пока нет зданий.</p>
       {% endfor %}
     </details>
+    <div class="map-views" id="map-views" hidden>
+      <button class="button outline compact" type="button" data-map-view="engels">Энгельс</button>
+      <button class="button outline compact" type="button" data-map-view="region">Вся область</button>
+    </div>
   </aside>
   <section class="map-panel" aria-label="Карта и метки зданий">
-    <div id="city-map" class="city-map" aria-label="Интерактивная карта Саратова"
+    <div id="city-map" class="city-map" aria-label="Интерактивная карта Саратовской области"
          data-buildings="{% url 'buildings_api' %}" data-projects="{% url 'map_api' %}"
          data-address="{% url 'map_address' %}"
          data-selected="{{ selected_building }}" data-tile-url="{{ map_tile_url }}"></div>
@@ -82,8 +86,7 @@
     </div>
   </section>
 </div>
-{{ city_bounds|json_script:"saratov-map-bounds" }}
-{{ city_boundary|json_script:"saratov-city-boundary" }}
+{{ region_map_bounds|json_script:"region-map-bounds" }}
 {% endblock %}
 {% block scripts %}
 <script defer src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
