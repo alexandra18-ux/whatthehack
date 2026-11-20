@@ -1,15 +1,19 @@
 {% extends "base.html" %}{% load static l10n %}
-{% block title %}Карта Саратова · Murrralium{% endblock %}
+{% block title %}Карта · Murrralium{% endblock %}
+{% block main_class %} map-main{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endblock %}
 {% block content %}
-<header class="page-heading"><h1>Карта Саратова</h1><p>Введите адрес или нажмите на здание на карте.</p></header>
 <div class="map-layout">
-  <aside class="panel building-list" id="address-search">
-    <h2>Найти здание</h2>
-    <form class="address-form" method="get" action="{% url 'map' %}">
-      {{ address_form.address.as_field_group }}
-      <button class="button lime">Найти</button>
+  <aside class="building-list" id="address-search">
+    <form class="address-form" role="search" aria-label="Поиск адреса на карте" method="get" action="{% url 'map' %}">
+      <label class="visually-hidden" for="{{ address_form.address.id_for_label }}">{{ address_form.address.label }}</label>
+      <span class="pin address-form-pin" aria-hidden="true"></span>
+      {{ address_form.address }}
+      <button class="button lime compact" type="submit">Найти</button>
     </form>
+    {% if address_form.address.errors or matches is not None %}
+    <div class="panel address-feedback">
+    {{ address_form.address.errors }}
     {% if matches %}
       <ul class="address-results" aria-label="Найденные адреса">
         {% for address in matches %}
@@ -33,7 +37,12 @@
         {% endfor %}
       </ul>
     {% elif matches is not None %}
-      <p class="notice">Адрес не найден. Проверьте улицу и номер дома или выберите здание из списка.</p>
+      <p>Адрес не найден. Проверьте улицу и номер дома.</p>
+    {% endif %}
+    {% if matches is not None %}
+    <p class="card-meta">Адреса OpenStreetMap через <a href="https://photon.komoot.io/">Photon</a>.</p>
+    {% endif %}
+    </div>
     {% endif %}
     <template id="map-address-result">
       <p id="map-address-status" role="status"></p>
@@ -48,13 +57,14 @@
       {% endif %}
     </template>
     <template id="map-street-walk-link">{% include "street_walk_link.html" %}</template>
-    <p class="card-meta">Адреса OpenStreetMap через <a href="https://photon.komoot.io/">Photon</a>.</p>
-    <h2>Здания в каталоге</h2>
-    {% for building in buildings %}
-    <a href="{% url 'building' building.pk %}" class="building-row"><span class="pin" aria-hidden="true"></span><span>{{ building.address }}{% if building.panorama_available %}<small class="map-panorama-label">Панорама 360°</small>{% endif %}</span></a>
-    {% empty %}
-    <p>В каталоге пока нет зданий.</p>
-    {% endfor %}
+    <details class="address-catalog">
+      <summary>Здания в каталоге</summary>
+      {% for building in buildings %}
+      <a href="{% url 'building' building.pk %}" class="building-row" data-map-building="{{ building.pk }}"><span class="pin" aria-hidden="true"></span><span>{{ building.address }}{% if building.panorama_available %}<small class="map-panorama-label">Панорама 360°</small>{% endif %}</span></a>
+      {% empty %}
+      <p>В каталоге пока нет зданий.</p>
+      {% endfor %}
+    </details>
   </aside>
   <section class="map-panel" aria-label="Карта и метки зданий">
     <div id="city-map" class="city-map" aria-label="Интерактивная карта Саратова"

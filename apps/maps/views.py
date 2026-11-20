@@ -9,7 +9,7 @@ from apps.buildings.views import city_buildings
 class AddressSearchForm(forms.Form):
     address = forms.CharField(
         label="Улица и номер дома", max_length=160,
-        widget=forms.TextInput(attrs={"placeholder": "Например, Московская, 55"}),
+        widget=forms.TextInput(attrs={"placeholder": "поиск на карте"}),
     )
 
 
