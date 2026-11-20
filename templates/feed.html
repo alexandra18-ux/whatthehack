@@ -1,54 +1,40 @@
 <div class="graffiti-feed" data-feed data-post="{% if project %}{{ project.pk }}{% endif %}">
-  {% if project %}
-  <div class="feed-toolbar">
-    <p class="feed-instructions">Свайпните по изображению или используйте стрелки</p>
-    <nav class="feed-navigation" aria-label="Переключение работ">
-      {% if previous_post %}
-      <a class="button outline compact" href="{% url 'home' %}?post={{ previous_post }}#projects"
-         data-feed-direction="previous" aria-label="Предыдущая работа"><span aria-hidden="true">↑</span></a>
-      {% else %}
-      <button class="button outline compact" type="button" disabled aria-label="Предыдущая работа"><span aria-hidden="true">↑</span></button>
-      {% endif %}
-      {% if next_post %}
-      <a class="button outline compact" href="{% url 'home' %}?post={{ next_post }}#projects"
-         data-feed-direction="next" aria-label="Следующая работа"><span aria-hidden="true">↓</span></a>
-      {% else %}
-      <button class="button outline compact" type="button" disabled aria-label="Следующая работа"><span aria-hidden="true">↓</span></button>
-      {% endif %}
-    </nav>
-  </div>
-  <article class="feed-post" id="project-{{ project.pk }}" aria-labelledby="feed-title">
+{% if project %}
+  <article class="feed-post" data-feed-swipe id="project-{{ project.pk }}" aria-labelledby="feed-title">
     <div class="feed-main">
-      <header class="feed-byline">
-        <a class="feed-author" href="{% url 'profile' project.author_id %}">
-          {% if project.author.profile.avatar %}
-          <img src="{% url 'avatar' project.author_id %}" alt="">
-          {% else %}
-          <span class="avatar-placeholder" aria-hidden="true">{{ project.author.profile.nickname|default:project.author.username|first|upper }}</span>
-          {% endif %}
-          {{ project.author.profile.nickname|default:project.author.username }}
-        </a>
-        <time datetime="{{ project.published_at|date:'c' }}">{{ project.published_at|date:"j E Y" }}</time>
-      </header>
       <div class="feed-cover" data-swipe-area>
-        <a href="{% url 'placement' project.pk %}" draggable="false">
-          <img src="{% url 'project_image' project.pk 'result' %}" alt="{{ project.title }}" draggable="false">
-        </a>
-        <div class="feed-score" aria-label="Средняя оценка">
-          <span aria-hidden="true">★</span>
-          {% if project.rating_count %}{{ project.rating_average|floatformat:1 }}{% else %}—{% endif %}
+        <a href="{% url 'placement' project.pk %}" draggable="false"><img src="{% url 'project_image' project.pk 'result' %}" alt="{{ project.title }}" draggable="false"></a>
+        <div class="feed-controls feed-controls-top">
+          {% if previous_post %}
+          <a class="button outline compact feed-arrow" data-feed-direction="previous" href="{% url 'home' %}?post={{ previous_post }}#projects" aria-label="Предыдущее граффити">↑</a>
+          {% else %}
+          <span class="button outline compact feed-arrow" aria-disabled="true" aria-label="Предыдущего граффити нет">↑</span>
+          {% endif %}
+        </div>
+        <div class="feed-controls feed-controls-bottom">
+          {% if next_post %}
+          <a class="button outline compact feed-arrow" data-feed-direction="next" href="{% url 'home' %}?post={{ next_post }}#projects" aria-label="Следующее граффити">↓</a>
+          {% else %}
+          <span class="button outline compact feed-arrow" aria-disabled="true" aria-label="Следующего граффити нет">↓</span>
+          {% endif %}
         </div>
       </div>
       <div class="feed-copy">
         <p class="card-location">{{ project.building.address }}</p>
         <h3 id="feed-title" tabindex="-1"><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
         <p>{{ project.description }}</p>
-        {% include "rating.html" %}
+        <p class="card-meta"><a href="{% url 'profile' project.author_id %}">{{ project.author.profile.nickname|default:project.author.username }}</a> · {{ project.published_at|date:"j E Y" }}</p>
       </div>
     </div>
-    {% include "discussion.html" %}
+    <div class="feed-sidebar">
+      <div class="feed-rating">
+        <h3>Рейтинг работы</h3>
+        {% include "rating.html" %}
+      </div>
+      {% include "discussion.html" %}
+    </div>
   </article>
-  {% else %}
-  <p class="empty">Здесь пока нет граффити. Выберите здание, чтобы создать первый проект.</p>
-  {% endif %}
+{% else %}
+<p class="empty">Здесь пока нет граффити. Выберите здание, чтобы создать первый проект.</p>
+{% endif %}
 </div>

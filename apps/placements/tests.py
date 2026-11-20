@@ -145,7 +145,7 @@ class PlacementWorkflowTests(TestCase):
         self.assertNotContains(response, "Первая работа")
         self.assertNotContains(response, "Комментарий первой работы")
         self.assertEqual(response.context["next_post"], older.pk)
-        self.assertIsNone(response.context["previous_post"])
+        self.assertEqual(response.context["previous_post"], older.pk)
 
         response = self.client.get(url, {"post": older.pk}, headers={"X-Muralium-Feed": "1"})
         self.assertTemplateUsed(response, "feed.html")
@@ -154,13 +154,16 @@ class PlacementWorkflowTests(TestCase):
         self.assertNotContains(response, "Вторая работа")
         self.assertContains(response, reverse("profile", args=[self.owner.pk]))
         self.assertEqual(response.context["previous_post"], latest.pk)
-        self.assertIsNone(response.context["next_post"])
+        self.assertEqual(response.context["next_post"], latest.pk)
         self.assertEqual(self.client.get(url, {"post": pending.pk}).status_code, 404)
 
         response = self.client.post(reverse("comment", args=[older.pk]), {
             "source": "feed", "text": "Новый комментарий",
         })
         self.assertRedirects(response, f"{url}?post={older.pk}#projects")
+        detail = self.client.get(reverse("placement", args=[older.pk]))
+        self.assertContains(detail, f'href="{url}?post={older.pk}#projects"')
+        self.assertContains(detail, "publication-author-name")
 
     def test_author_rating_weights_each_rated_public_work_equally(self):
         published_at = timezone.now()

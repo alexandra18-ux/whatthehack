@@ -39,9 +39,15 @@ def home(request):
         newer = Q(published_at__gt=project.published_at) | (same_date & Q(pk__gt=project.pk))
         older = Q(published_at__lt=project.published_at) | (same_date & Q(pk__lt=project.pk))
         ids = published.values_list("pk", flat=True)
+        previous_post = ids.filter(newer).order_by("published_at", "pk").first()
+        next_post = ids.filter(older).first()
+        if previous_post is None and next_post is not None:
+            previous_post = ids.order_by("published_at", "pk").first()
+        if next_post is None and previous_post is not None:
+            next_post = ids.first()
         context.update(
-            previous_post=ids.filter(newer).order_by("published_at", "pk").first(),
-            next_post=ids.filter(older).first(),
+            previous_post=previous_post,
+            next_post=next_post,
             comments=project.comments.select_related("author__profile")[:20],
         )
 

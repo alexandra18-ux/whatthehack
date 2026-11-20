@@ -5,7 +5,21 @@
 <header class="page-heading">
   <p class="status">{{ project.get_status_display }}</p>
   <h1>{{ project.title }}</h1>
-  <p><a href="{% url 'profile' project.author_id %}">{{ project.author.profile.nickname|default:project.author.username }}</a>{% if project.published_at %} · {{ project.published_at|date:"j E Y" }}{% endif %}</p>
+  {% with profile=project.author.profile %}
+  {% with author_name=profile.nickname|default:project.author.username %}
+  <div class="publication-byline">
+    <a class="publication-author" href="{% url 'profile' project.author_id %}">
+      {% if profile.avatar %}
+      <img class="publication-avatar" src="{% url 'avatar' project.author_id %}" alt="">
+      {% else %}
+      <span class="publication-avatar avatar-placeholder" aria-hidden="true">{{ author_name|first|upper }}</span>
+      {% endif %}
+      <span class="publication-author-name">{{ author_name }}</span>
+    </a>
+    {% if project.published_at %}<time datetime="{{ project.published_at|date:'c' }}">{{ project.published_at|date:"j E Y" }}</time>{% endif %}
+  </div>
+  {% endwith %}
+  {% endwith %}
 </header>
 {% if project.rejection_reason %}<p class="notice">{{ project.rejection_reason }}</p>{% endif %}
 <div class="project-detail-layout">
@@ -18,6 +32,9 @@
   <img class="building-cover" data-image="after" src="{% url 'project_image' project.pk 'result' %}" alt="Фасад с муралом">
   <img class="building-cover" data-image="before" src="{% url 'project_image' project.pk 'before' %}" alt="Исходный фасад" loading="lazy" hidden>
 </div>
+{% if published %}
+<p class="project-feed-return"><a class="button outline" href="{% url 'home' %}?post={{ project.pk }}#projects">← Вернуться к ленте</a></p>
+{% endif %}
 <div class="project-description">{{ project.description|linebreaks }}<a class="button outline" href="{% url 'map' %}?building={{ project.building_id }}">Здание на карте</a></div>
 {% if published %}{% include "rating.html" %}{% endif %}
 </div>
