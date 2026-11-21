@@ -1,5 +1,5 @@
 <article class="feed-post" id="project-{{ project.pk }}" aria-labelledby="{{ title_prefix|default:"feed-title" }}-{{ project.pk }}">
-  <div class="feed-main">
+  <div class="feed-main{% if home_feed %} feed-main-home{% endif %}">
     <header class="feed-byline">
       <a class="feed-author" href="{% url 'profile' project.author_id %}">
         {% if project.author.profile.avatar %}
@@ -11,9 +11,10 @@
       </a>
       <time datetime="{{ project.published_at|date:'c' }}">{{ project.published_at|date:"j E Y" }}</time>
     </header>
+    {% if home_feed %}<p class="card-location feed-location">{{ project.building.address }}</p>{% endif %}
     <div class="feed-caption">
       <div class="feed-title-group">
-        <p class="card-location">{{ project.building.address }}</p>
+        {% if not home_feed %}<p class="card-location">{{ project.building.address }}</p>{% endif %}
         <h3 id="{{ title_prefix|default:"feed-title" }}-{{ project.pk }}"><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
       </div>
       <a class="button outline compact feed-details" href="{% url 'placement' project.pk %}">О работе</a>

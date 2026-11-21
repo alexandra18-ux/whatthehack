@@ -8,7 +8,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
-from apps.placements.models import Comment, ModerationDecision, Placement, author_rating, can_moderate, published_placements
+from apps.placements.models import (
+    Comment, ModerationDecision, Placement, author_rating, can_moderate, published_placements, with_ratings,
+)
 from apps.placements.views import image_response
 
 from .auth import can_manage_restrictions
@@ -70,6 +72,7 @@ def account(request):
         context["page"] = Paginator(comments, 12).get_page(request.GET.get("page"))
     elif tab == "wall":
         projects = Placement.objects.filter(author=request.user).select_related("building", "author__profile", "facade_photo__panorama")
+        projects = with_ratings(projects, request.user).order_by("-created_at", "-pk")
         page = Paginator(projects, 12).get_page(request.GET.get("page"))
         context.update(projects=page.object_list, page=page)
     return render(request, "mine.html", context)
@@ -102,10 +105,11 @@ def public_profile(request, pk):
         authors = authors.filter(is_active=True)
     author = get_object_or_404(authors, pk=pk)
     projects = (
-        Placement.objects.select_related("building", "author__profile", "facade_photo__panorama")
+        Placement.objects.select_related("building", "author__profile", "facade_photo__panorama").order_by("-created_at", "-pk")
         if may_delete_other_works else published_placements()
     )
-    page = Paginator(projects.filter(author=author), 12).get_page(request.GET.get("page"))
+    projects = with_ratings(projects.filter(author=author), request.user)
+    page = Paginator(projects, 12).get_page(request.GET.get("page"))
     return render(request, "profile.html", {
         "profile_user": author, "profile": getattr(author, "profile", None),
         "profile_rating": author_rating(author),

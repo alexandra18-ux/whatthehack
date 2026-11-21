@@ -338,9 +338,13 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .graffiti-feed .feed-post { block-size: auto; grid-template-rows: auto; border: 1px solid var(--line); border-radius: var(--radius); scroll-margin-top: 90px; }
 .search-results .feed-post { block-size: auto; border: 1px solid var(--line); border-radius: var(--radius); }
 .graffiti-feed .feed-main { grid-template-rows: auto auto 1fr; }
+.graffiti-feed .feed-main-home { grid-template-rows: auto auto auto 1fr; }
 .graffiti-feed .feed-cover { aspect-ratio: 16 / 10; max-block-size: 65vh; border-bottom-left-radius: var(--radius); touch-action: auto; }
 .graffiti-feed .feed-sidebar { overflow: visible; }
 .feed-byline, .feed-caption { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 16px; }
+.feed-main-home .feed-byline { padding-block-end: 4px; }
+.feed-main-home .feed-caption { padding-block-start: 4px; }
+.feed-location { padding-inline: 16px; }
 .feed-byline time { color: var(--muted); font-size: .875rem; text-align: right; }
 .feed-author { display: inline-flex; align-items: center; justify-self: start; gap: 9px; font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
 .feed-author img, .feed-author .avatar-placeholder { width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; object-fit: cover; font-size: .95rem; }
@@ -358,12 +362,12 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .search-results .feed-sidebar .comment-list { max-height: none; overflow: visible; overscroll-behavior: auto; }
 .search-results .feed-sidebar textarea { overscroll-behavior: auto; }
 .feed-title-group { min-width: 0; }
-.feed-title-group .card-location { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-title-group .card-location, .feed-location { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .graffiti-feed .feed-title-group h3 { line-height: 1.2; overflow-wrap: anywhere; }
 .feed-title-group h3 { font-size: clamp(1.15rem, 2.3vw, 1.65rem); }
 .feed-title-group h3 a { text-decoration: none; }
 .feed-title-group h3 a:hover { text-decoration: underline; }
-.feed-title-group .card-location, .building-list .card-meta { color: var(--muted); font-size: .875rem; }
+.feed-title-group .card-location, .feed-location, .building-list .card-meta { color: var(--muted); font-size: .875rem; }
 .feed-details { justify-self: end; white-space: nowrap; }
 .graffiti-feed .feed-details { align-self: end; }
 .rating-widget { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-top: 12px; }
@@ -376,6 +380,8 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
   font-weight: 750;
   font-variant-numeric: tabular-nums;
 }
+.rating-stars { position: relative; display: inline-block; color: var(--muted); white-space: nowrap; }
+.rating-stars-fill { position: absolute; inset: 0 auto 0 0; overflow: hidden; color: var(--link); }
 .rating-form {
   display: inline-flex;
   align-items: center;
@@ -581,6 +587,7 @@ legend { font-size: 1.1rem; padding: 0; font-weight: 730; margin-bottom: 6px; }
   .hero-image, .hero-placeholder { min-height: 220px; aspect-ratio: 1.7; }
   .project-grid { grid-template-columns: minmax(0, 1fr); }
   .feed-byline, .feed-caption { padding: 8px 10px; }
+  .feed-location { padding-inline: 10px; }
   .feed-byline time { font-size: .75rem; }
   .section { margin-top: 35px; }
   .footer-inner { align-items: flex-start; flex-direction: column; }
