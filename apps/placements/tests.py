@@ -12,7 +12,8 @@ from django.utils import timezone
 from django.utils.html import escape
 from PIL import Image
 
-from apps.buildings.models import Building, Panorama
+from apps.buildings.models import Building, FacadePhoto, Panorama
+from apps.murals.models import MuralDesign
 from apps.users.models import AccountRestriction
 
 from .models import Comment, CommentDeletion, CommentLike, ModerationDecision, Placement, Rating
@@ -47,6 +48,23 @@ class PlacementWorkflowTests(TestCase):
             "facade_file": self.upload("facade.png", "RGB", (200, 200, 200)),
             "mural_file": self.upload("mural.png", "RGBA", (0, 100, 200, 128)),
         }
+
+    def test_editor_shows_each_catalog_only_when_it_has_choices(self):
+        facade = FacadePhoto.objects.create(building=self.building, uploaded_by=self.owner)
+        design = MuralDesign.objects.create(title="Эскиз", author=self.owner)
+        design.buildings.add(self.building)
+
+        for public_facade, public_design in ((False, False), (True, False), (False, True), (True, True)):
+            with self.subTest(facade=public_facade, design=public_design):
+                FacadePhoto.objects.filter(pk=facade.pk).update(is_public=public_facade)
+                MuralDesign.objects.filter(pk=design.pk).update(is_public=public_design)
+                response = self.client.get(reverse("create"), {"building": self.building.pk})
+                self.assertContains(response, 'name="facade_file"')
+                self.assertContains(response, 'name="mural_file"')
+                for name, public in (("facade", public_facade), ("design", public_design)):
+                    field = response.context["form"][name]
+                    wrapper = "<div>" if public else "<div hidden>"
+                    self.assertContains(response, f"{wrapper}{field.as_field_group()}</div>", html=True)
 
     def test_existing_graffiti_photo_can_be_revised_and_published(self):
         create = reverse("create")
@@ -103,7 +121,9 @@ class PlacementWorkflowTests(TestCase):
 
         reviewer.post(review, {"status": Placement.Status.APPROVED})
         self.assertContains(Client().get(reverse("home")), project.title)
-        self.assertEqual(Client().get(image).status_code, 200)
+        public_image = Client().get(image)
+        public_image.close()
+        self.assertEqual(public_image.status_code, 200)
         self.assertEqual(Client().get(reverse("map_api")).json()["projects"][0]["title"], project.title)
 
     def test_home_shows_static_cat_without_published_projects(self):

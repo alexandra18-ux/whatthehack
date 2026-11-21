@@ -6,15 +6,15 @@
   <meta name="theme-color" content="#f6f6ef">
   <title>{% block title %}Murrralium — город как холст{% endblock %}</title>
   <link rel="icon" href="{% static 'logo.svg' %}" type="image/svg+xml">
-  <script src="{% static 'js/theme.js' %}"></script>
-  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=3">
+  <script src="{% static 'js/theme.js' %}?v=2"></script>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=16">
   <link rel="stylesheet" href="{% static 'css/account.css' %}">
   {% block head %}{% endblock %}
 </head>
 <body>
 <header class="site-header">
   <div class="container header-inner">
-    <span class="brand"><img class="brand-mark" src="{% static 'logo.svg' %}" width="36" height="38" alt="">Murrralium</span>
+    <a class="brand" href="{% url 'home' %}"><img class="brand-mark" src="{% static 'logo.svg' %}" width="36" height="38" alt="">Murrralium</a>
     <nav aria-label="Основная навигация">
       <a href="{% url 'home' %}#projects"{% if request.resolver_match.url_name == "home" %} aria-current="page"{% endif %}>Проекты</a>
       <a href="{% url 'map' %}"{% if request.resolver_match.url_name == "map" %} aria-current="page"{% endif %}>Карта</a>
@@ -29,9 +29,32 @@
       <button class="button outline compact" type="submit">Найти</button>
     </form>
     <div class="header-actions">
-      <button class="button outline compact theme-toggle" type="button" aria-label="Тёмная тема" aria-pressed="false" title="Тёмная тема" hidden>
-        <span aria-hidden="true"></span>
-      </button>
+      <details class="theme-picker" hidden>
+        <summary class="button outline compact theme-toggle" aria-label="Выбрать тему" title="Выбрать тему">
+          <span class="theme-icon theme-icon-system" aria-hidden="true"></span>
+        </summary>
+        <fieldset class="theme-options">
+          <legend class="visually-hidden">Тема оформления</legend>
+          <label class="theme-option">
+            <input class="visually-hidden" type="radio" name="theme" value="light">
+            <span class="theme-icon theme-icon-light" aria-hidden="true"></span>
+            Светлая тема
+            <span class="theme-check" aria-hidden="true">✓</span>
+          </label>
+          <label class="theme-option">
+            <input class="visually-hidden" type="radio" name="theme" value="dark">
+            <span class="theme-icon theme-icon-dark" aria-hidden="true"></span>
+            Тёмная тема
+            <span class="theme-check" aria-hidden="true">✓</span>
+          </label>
+          <label class="theme-option">
+            <input class="visually-hidden" type="radio" name="theme" value="system" checked>
+            <span class="theme-icon theme-icon-system" aria-hidden="true"></span>
+            Системная тема
+            <span class="theme-check" aria-hidden="true">✓</span>
+          </label>
+        </fieldset>
+      </details>
       {% if user.is_authenticated %}
         {% firstof user.profile.nickname user.username as header_name %}
         <details class="header-account-menu" data-account-menu>

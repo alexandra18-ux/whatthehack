@@ -3,16 +3,14 @@ from django.conf import settings
 from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 
-from apps.buildings.addresses import AddressSearchUnavailable, find_addresses
-from apps.buildings.views import city_buildings
-
-REGION_MAP_BOUNDS = [[49.75, 42.45], [52.9, 50.9]]
+from apps.buildings.addresses import REGION_MAP_BOUNDS, AddressSearchUnavailable, find_addresses
+from apps.buildings.views import regional_buildings
 
 
 class AddressSearchForm(forms.Form):
     address = forms.CharField(
-        label="Улица и номер дома", max_length=160,
-        widget=forms.TextInput(attrs={"placeholder": "поиск на карте"}),
+        label="Населённый пункт, улица и номер дома", max_length=160,
+        widget=forms.TextInput(attrs={"placeholder": "Населённый пункт, улица, дом"}),
     )
 
 
@@ -26,7 +24,7 @@ def maps(request):
         except AddressSearchUnavailable:
             form.add_error("address", "Поиск временно недоступен. Повторите запрос чуть позже.")
     response = render(request, "map.html", {
-        "buildings": city_buildings(),
+        "buildings": regional_buildings(),
         "region_map_bounds": REGION_MAP_BOUNDS,
         "map_tile_url": settings.MAP_TILE_URL,
         "selected_building": request.GET.get("building", ""),

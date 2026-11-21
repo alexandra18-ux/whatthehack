@@ -7,9 +7,12 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.buildings.addresses import find_addresses
-from apps.buildings.models import Building, Panorama
+from apps.buildings.models import Building, FacadePhoto, Panorama
+from apps.murals.models import MuralDesign
+from apps.placements.models import Placement
 
 
 class MapPageTests(TestCase):
@@ -41,29 +44,36 @@ class MapPageTests(TestCase):
         self.assertContains(response, 'id="map-address-login"')
 
     @patch("apps.buildings.addresses.urlopen")
-    def test_search_filters_engels_and_creates_only_the_confirmed_saratov_address(self, urlopen):
+    def test_search_distinguishes_settlements_and_creates_the_confirmed_address(self, urlopen):
         cache.clear()
         self.addCleanup(cache.clear)
 
-        def feature(osm_id, latitude, longitude):
+        def feature(osm_id, latitude, longitude, city):
             return {
-                "properties": {"osm_type": "W", "osm_id": osm_id, "street": "Московская улица", "housenumber": "55"},
+                "properties": {
+                    "osm_type": "W", "osm_id": osm_id, "street": "Московская улица",
+                    "housenumber": "55", "city": city,
+                },
                 "geometry": {"type": "Point", "coordinates": [longitude, latitude]},
             }
 
         urlopen.return_value = io.BytesIO(json.dumps({
             "features": [
-                feature(138564607, 51.4949444, 46.1344316),  # Engels
-                feature(100909666, 51.5327164, 46.0390643),  # Saratov
+                feature(138564607, 51.4949444, 46.1344316, "Энгельс"),
+                feature(100909666, 51.5327164, 46.0390643, "Саратов"),
+                feature(123, 55.7558, 37.6176, "Москва"),
             ],
         }).encode())
-        request = {"address": "Московская, 55"}
+        request = {"address": "Энгельс, Московская, 55"}
         response = self.client.get(reverse("map"), request)
-        self.assertContains(response, "Московская улица, 55")
+        self.assertContains(response, "Энгельс, Московская улица, 55")
+        self.assertContains(response, "Саратов, Московская улица, 55")
         self.assertContains(response, "panorama%5Bpoint%5D=46.039064%2C51.532716")
-        self.assertEqual([match.ref for match in response.context["matches"]], ["w100909666"])
-        match, = find_addresses(request["address"])
+        self.assertEqual([match.ref for match in response.context["matches"]], ["w138564607", "w100909666"])
+        match, _ = find_addresses(request["address"])
         self.assertEqual(urlopen.call_count, 1)
+        requested = urlparse(urlopen.call_args.args[0].full_url)
+        self.assertEqual(parse_qs(requested.query)["q"], [request["address"]])
 
         self.client.force_login(get_user_model().objects.create_user(username="artist"))
         add = reverse("building_add")
@@ -71,7 +81,8 @@ class MapPageTests(TestCase):
         self.client.post(add, {"address_ticket": match.ticket})
         self.client.post(add, {"address_ticket": match.ticket})
         building = Building.objects.get()
-        self.assertEqual(building.osm_ref, "w100909666")
+        self.assertEqual(building.osm_ref, "w138564607")
+        self.assertEqual(building.address, "Энгельс, Московская улица, 55")
         self.assertEqual(self.client.get(reverse("buildings_api")).json()["buildings"][0]["id"], building.pk)
 
     @override_settings(GEOCODER_URL="https://example.org/photon/api/")
@@ -81,31 +92,46 @@ class MapPageTests(TestCase):
         self.addCleanup(cache.clear)
         urlopen.return_value = io.BytesIO(json.dumps({
             "features": [{
-                "properties": {"osm_type": "W", "osm_id": 100909666, "street": "Московская улица", "housenumber": "55"},
-                "geometry": {"type": "Point", "coordinates": [46.0390643, 51.5327164]},
+                "properties": {
+                    "osm_type": "W", "osm_id": 138564607, "street": "Московская улица",
+                    "housenumber": "55", "city": "Энгельс",
+                },
+                "geometry": {"type": "Point", "coordinates": [46.1344316, 51.4949444]},
             }],
         }).encode())
         url = reverse("map_address")
         self.assertEqual(self.client.get(url, {"lat": "nan", "lon": "46"}).status_code, 400)
-        self.assertEqual(self.client.get(url, {"lat": "51.4949444", "lon": "46.1344316"}).status_code, 400)
+        self.assertEqual(self.client.get(url, {"lat": "55.75", "lon": "37.61"}).status_code, 400)
         urlopen.assert_not_called()
 
-        response = self.client.get(url, {"lat": "51.53270", "lon": "46.03900"})
+        point = {"lat": "51.49494", "lon": "46.13443"}
+        response = self.client.get(url, point)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.json()["is_authenticated"])
         self.assertIn("no-store", response.headers["Cache-Control"])
-        self.assertEqual(response.json()["address"], "Московская улица, 55")
+        self.assertEqual(response.json()["address"], "Энгельс, Московская улица, 55")
         destination = urlparse(response.json()["street_walk_url"])
         self.assertEqual(destination.netloc, "yandex.ru")
-        self.assertEqual(parse_qs(destination.query)["panorama[point]"], ["46.039064,51.532716"])
+        self.assertEqual(parse_qs(destination.query)["panorama[point]"], ["46.134432,51.494944"])
         requested = urlparse(urlopen.call_args.args[0].full_url)
         self.assertEqual(requested.path, "/photon/reverse/")
         self.assertEqual(parse_qs(requested.query)["layer"], ["house"])
 
-        self.client.force_login(get_user_model().objects.create_user(username="map-artist"))
+        author = get_user_model().objects.create_user(username="map-artist")
+        self.client.force_login(author)
         self.assertContains(self.client.get(reverse("map")), 'id="map-address-action"')
-        authenticated = self.client.get(url, {"lat": "51.53270", "lon": "46.03900"})
+        authenticated = self.client.get(url, point)
         self.assertTrue(authenticated.json()["is_authenticated"])
         created = self.client.post(reverse("building_add"), {"address_ticket": response.json()["ticket"]})
-        building = Building.objects.get(osm_ref="w100909666")
+        building = Building.objects.get(osm_ref="w138564607")
         self.assertRedirects(created, f"{reverse('create')}?building={building.pk}")
+        self.assertContains(self.client.get(reverse("map")), building.address)
+
+        project = Placement.objects.create(
+            author=author, building=building, title="Мурал в Энгельсе", corners=[],
+            facade_photo=FacadePhoto.objects.create(building=building, uploaded_by=author),
+            mural_design=MuralDesign.objects.create(title="Эскиз", author=author),
+            status=Placement.Status.APPROVED, published_at=timezone.now(),
+        )
+        markers = self.client.get(reverse("map_api")).json()["projects"]
+        self.assertEqual([marker["id"] for marker in markers], [project.pk])

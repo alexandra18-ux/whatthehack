@@ -17,7 +17,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 from django.views.decorators.vary import vary_on_cookie
 
-from apps.buildings.addresses import CITY_FILTER, in_city, street_walk_url
+from apps.buildings.addresses import REGION_FILTER, street_walk_url
 from apps.buildings.models import Building, FacadePhoto
 from apps.murals.models import MuralDesign
 
@@ -90,9 +90,8 @@ def map_api(request):
             "url": reverse("placement", args=[project.pk]),
         }
         for project in published_placements().filter(**{
-            f"building__{field}": bounds for field, bounds in CITY_FILTER.items()
+            f"building__{field}": bounds for field, bounds in REGION_FILTER.items()
         })
-        if in_city(project.building.latitude, project.building.longitude)
     ]})
 
 

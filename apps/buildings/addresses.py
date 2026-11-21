@@ -1,25 +1,21 @@
 import json
 from dataclasses import dataclass
 from decimal import Decimal
-from functools import lru_cache
 from hashlib import sha256
 from math import hypot
-from pathlib import Path
 from urllib.parse import urlencode, urljoin
 from urllib.request import Request, urlopen
 
-import cv2
-import numpy as np
 from django.conf import settings
 from django.core import signing
 from django.core.cache import cache
 
-SOUTH, WEST, NORTH, EAST = map(Decimal, ("51.392", "45.805", "51.686", "46.210"))
-CITY_FILTER = {
+SOUTH, WEST, NORTH, EAST = map(Decimal, ("49.75", "42.45", "52.9", "50.9"))
+REGION_MAP_BOUNDS = [[float(SOUTH), float(WEST)], [float(NORTH), float(EAST)]]
+REGION_FILTER = {
     "latitude__range": (SOUTH, NORTH),
     "longitude__range": (WEST, EAST),
 }
-BOUNDARY_FILE = Path(__file__).with_name("data") / "saratov-boundary.json"
 ADDRESS_SALT = "muralium-saratov-address"
 
 
@@ -27,28 +23,10 @@ class AddressSearchUnavailable(Exception):
     pass
 
 
-@lru_cache(maxsize=1)
-def city_boundary():
-    return json.loads(BOUNDARY_FILE.read_text(encoding="utf-8"))
-
-
-def city_point(latitude, longitude):
-    return (float(longitude) - 46) * 1000000, (float(latitude) - 51) * 1000000
-
-
-@lru_cache(maxsize=1)
-def city_contours():
-    return [
-        np.array([city_point(lat, lon) for lat, lon in ring], dtype=np.float32)
-        for ring in city_boundary()
-    ]
-
-
-def in_city(latitude, longitude):
+def in_map_region(latitude, longitude):
     return (
-        SOUTH <= latitude <= NORTH and WEST <= longitude <= EAST
-        and any(cv2.pointPolygonTest(contour, city_point(latitude, longitude), False) >= 0
-                for contour in city_contours())
+        latitude.is_finite() and longitude.is_finite()
+        and SOUTH <= latitude <= NORTH and WEST <= longitude <= EAST
     )
 
 
@@ -61,20 +39,21 @@ def street_walk_url(latitude, longitude):
         "panorama[full]": "true",
         "z": 17,
     })
-    return f"https://yandex.ru/maps/194/saratov/?{query}"
+    return f"https://yandex.ru/maps/?{query}"
 
 
 @dataclass(frozen=True)
-class SaratovAddress:
+class Address:
     ref: str
     street: str
     number: str
     latitude: Decimal
     longitude: Decimal
+    settlement: str = ""
 
     @property
     def label(self):
-        return f"{self.street}, {self.number}"
+        return ", ".join(filter(None, (self.settlement, self.street, self.number)))
 
     @property
     def street_walk_url(self):
@@ -83,7 +62,7 @@ class SaratovAddress:
     @property
     def ticket(self):
         return signing.dumps(
-            [self.ref, self.street, self.number, str(self.latitude), str(self.longitude)],
+            [self.ref, self.street, self.number, str(self.latitude), str(self.longitude), self.settlement],
             salt=ADDRESS_SALT,
         )
 
@@ -92,7 +71,7 @@ def from_feature(feature):
     properties = feature.get("properties", {})
     if not isinstance(properties, dict):
         return None
-    street = properties.get("street") or properties.get("locality")
+    street = properties.get("street") or properties.get("locality") or properties.get("city")
     number = properties.get("housenumber")
     osm_type = properties.get("osm_type")
     osm_id = properties.get("osm_id")
@@ -111,15 +90,21 @@ def from_feature(feature):
         longitude = Decimal(str(lon)).quantize(Decimal("0.000001"))
     except (KeyError, TypeError, ValueError, ArithmeticError):
         return None
-    if latitude.is_finite() and longitude.is_finite() and in_city(latitude, longitude):
-        return SaratovAddress(f"{osm_type.lower()}{osm_id}", street, number, latitude, longitude)
+    if in_map_region(latitude, longitude):
+        settlement = properties.get("city")
+        if (
+            not isinstance(settlement, str) or settlement.casefold() == street.casefold()
+            or len(settlement) + len(street) + len(number) + 4 > 220
+        ):
+            settlement = ""
+        return Address(f"{osm_type.lower()}{osm_id}", street, number, latitude, longitude, settlement)
     return None
 
 
 def find_addresses(query):
     normalized = " ".join(query.split())
     return geocode(settings.GEOCODER_URL, {
-        "q": normalized if "саратов" in normalized.casefold() else f"Саратов, {normalized}",
+        "q": normalized,
         "layer": "house",
         "limit": 12,
         "bbox": f"{WEST},{SOUTH},{EAST},{NORTH}",
@@ -145,15 +130,15 @@ def address_at(latitude, longitude):
 def geocode(url, params):
     query = urlencode(params)
     digest = sha256(f"{url}?{query}".casefold().encode()).hexdigest()
-    key = f"saratov-address:{digest}"
+    key = f"regional-address:{digest}"
     matches = cache.get(key)
     if matches is not None:
         return matches
-    if not cache.add("saratov-geocoding-request", True, timeout=1):
+    if not cache.add("regional-geocoding-request", True, timeout=1):
         raise AddressSearchUnavailable
 
     request = Request(f"{url}?{query}", headers={
-        "User-Agent": "Muralium/1.0 (Saratov address search)",
+        "User-Agent": "Murrralium/1.0 (Regional address search)",
         "Accept": "application/json",
     })
     try:
@@ -168,7 +153,7 @@ def geocode(url, params):
     matches = {}
     for feature in features:
         if isinstance(feature, dict) and (address := from_feature(feature)):
-            matches.setdefault(address.label.casefold(), address)
+            matches.setdefault(address.ref, address)
     results = list(matches.values())
     cache.set(key, results, timeout=86400 if results else 3600)
     return results
@@ -176,9 +161,9 @@ def geocode(url, params):
 
 def get_address(ticket):
     try:
-        ref, street, number, latitude, longitude = signing.loads(
+        ref, street, number, latitude, longitude, *settlement = signing.loads(
             ticket, salt=ADDRESS_SALT, max_age=86400,
         )
     except signing.BadSignature:
         return None
-    return SaratovAddress(ref, street, number, Decimal(latitude), Decimal(longitude))
+    return Address(ref, street, number, Decimal(latitude), Decimal(longitude), *settlement)
