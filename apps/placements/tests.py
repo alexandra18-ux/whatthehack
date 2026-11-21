@@ -129,7 +129,7 @@ class PlacementWorkflowTests(TestCase):
     def test_home_shows_static_cat_without_published_projects(self):
         response = Client().get(reverse("home"))
         self.assertEqual(response.context["projects"], [])
-        self.assertContains(response, 'src="/static/images/mural-cat.jpg"')
+        self.assertContains(response, 'src="/static/images/mural-cat.png"')
 
     def test_existing_graffiti_rejects_invalid_photo(self):
         response = self.client.post(reverse("create"), {

@@ -62,5 +62,5 @@
 
 @media (max-width: 760px) {
   .about-intro, .about-sections { grid-template-columns: minmax(0, 1fr); }
-  .about-example img { height: auto; aspect-ratio: 1200 / 760; }
+  .about-example img { height: auto; }
 }
