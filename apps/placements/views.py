@@ -34,6 +34,11 @@ def with_comment_likes(comments, viewer):
     return comments
 
 
+def with_feed_comments(projects, viewer):
+    comments = with_comment_likes(Comment.objects.all(), viewer).order_by("-like_count", "-created_at", "-pk")
+    return projects.prefetch_related(Prefetch("comments", queryset=comments[:1], to_attr="feed_comments"))
+
+
 def home(request):
     published = published_placements()
     post = request.GET.get("post")
@@ -43,10 +48,7 @@ def home(request):
         project = get_object_or_404(published, pk=post)
         return redirect(f"{reverse('home')}#project-{project.pk}")
 
-    comments = with_comment_likes(Comment.objects.all(), request.user).order_by("-like_count", "-created_at", "-pk")
-    projects = list(with_ratings(published, request.user).prefetch_related(
-        Prefetch("comments", queryset=comments[:1], to_attr="feed_comments"),
-    ))
+    projects = list(with_feed_comments(with_ratings(published, request.user), request.user))
     for project in projects:
         project.comment_draft = take_comment_draft(request, project)
     return render(request, "home.html", {
@@ -70,10 +72,7 @@ def search(request):
                 | Q(author__username__iregex=pattern)
                 | Q(author__profile__nickname__iregex=pattern)
             )
-        projects = with_ratings(projects, request.user).prefetch_related(Prefetch(
-            "comments", queryset=Comment.objects.select_related("author__profile")[:3],
-            to_attr="search_comments",
-        ))
+        projects = with_feed_comments(with_ratings(projects, request.user), request.user)
         page = Paginator(projects, 6).get_page(request.GET.get("page"))
     return render(request, "search.html", {"search_query": query, "page": page})
 

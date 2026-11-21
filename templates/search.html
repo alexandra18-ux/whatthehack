@@ -4,9 +4,9 @@
 <section class="section">
   <header class="section-heading"><h1>Поиск проектов</h1></header>
   {% if search_query %}
-  <div class="search-results">
+  <div class="graffiti-feed" data-feed>
     {% for project in page %}
-      {% include "feed_card.html" with in_search=True comments=project.search_comments %}
+      {% include "feed_card.html" with in_feed=True title_prefix="result-title" %}
     {% empty %}
       <p class="empty">По запросу «{{ search_query }}» ничего не найдено.</p>
     {% endfor %}
