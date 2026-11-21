@@ -16,7 +16,7 @@
   </aside>
   <div class="account-content">
     {% if tab == 'wall' %}
-    <section aria-labelledby="wall-title">
+    <section class="account-own-wall" aria-labelledby="wall-title">
       <header class="account-section-heading">
         <h2 id="wall-title">Моя стена</h2>
         {% if not user.restrictions.publications_block_active %}<a class="button lime" href="{% url 'create' %}">Создать проект</a>{% endif %}

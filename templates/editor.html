@@ -60,11 +60,12 @@
       <legend>Публикация</legend>
       {{ form.title.as_field_group }}
       {{ form.description.as_field_group }}
+      {{ form.mural_state.as_field_group }}
     </fieldset>
     <button class="button lime" id="submit-placement" disabled>{% if revision %}Отправить повторно{% else %}Отправить на модерацию{% endif %}</button>
   </aside>
 </form>
 {% endblock %}
 {% block scripts %}
-<script defer src="{% static 'js/placement_editor.js' %}?v=5"></script>
+<script defer src="{% static 'js/placement_editor.js' %}?v=6"></script>
 {% endblock %}
