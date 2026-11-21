@@ -293,6 +293,7 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .profile-rating strong, .profile-rating span { color: var(--link); }
 .graffiti-feed { display: grid; gap: 24px; }
+.search-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 .feed-post {
   display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(250px, 1fr); grid-template-rows: minmax(0, 1fr);
   block-size: 100%;
@@ -301,6 +302,7 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 }
 .feed-main { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto; min-width: 0; min-height: 0; }
 .graffiti-feed .feed-post { block-size: auto; grid-template-rows: auto; border: 1px solid var(--line); border-radius: var(--radius); scroll-margin-top: 90px; }
+.search-results .feed-post { block-size: auto; border: 1px solid var(--line); border-radius: var(--radius); }
 .graffiti-feed .feed-main { grid-template-rows: auto auto 1fr; }
 .graffiti-feed .feed-cover { aspect-ratio: 16 / 10; max-block-size: 65vh; touch-action: auto; }
 .graffiti-feed .feed-cover img { object-fit: contain; }
@@ -318,6 +320,10 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .feed-rating .rating-widget { margin: 0; }
 .feed-rating + .button { margin-block-start: 16px; }
 .feed-sidebar .discussion { border-left: 0; background: transparent; }
+.search-results .feed-rating { padding: clamp(14px, 2vw, 22px); padding-bottom: 0; }
+.search-results .feed-sidebar { overflow: visible; overscroll-behavior: auto; }
+.search-results .feed-sidebar .comment-list { max-height: none; overflow: visible; overscroll-behavior: auto; }
+.search-results .feed-sidebar textarea { overscroll-behavior: auto; }
 .feed-title-group { min-width: 0; }
 .feed-title-group .card-location { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .graffiti-feed .feed-title-group h3 { line-height: 1.2; overflow-wrap: anywhere; }
@@ -432,7 +438,16 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .canvas-frame { margin-top: 11px; display: grid; align-items: center; min-height: 200px; text-align: center; background: var(--canvas); color: var(--muted); border-radius: 12px; overflow: hidden; }
 .canvas-frame canvas, .canvas-frame img { width: 100%; display: block; }
 .canvas-frame canvas { height: auto; }
-.facade-stage { position: relative; cursor: crosshair; touch-action: none; user-select: none; }
+.facade-stage { position: relative; }
+.facade-stage.is-editable { user-select: none; }
+.corner-handle { touch-action: none; }
+.canvas-frame .editor-sketch-overlay, .canvas-frame .editor-result {
+  position: absolute;
+  inset: 0 auto auto 0;
+  pointer-events: none;
+}
+.canvas-frame .editor-sketch-overlay { height: 100%; object-fit: fill; transform-origin: 0 0; }
+.canvas-frame .editor-result { height: 100%; }
 .facade-stage.is-dragging, .facade-stage.is-dragging .corner-handle { cursor: grabbing; }
 .corner-handle {
   position: absolute;

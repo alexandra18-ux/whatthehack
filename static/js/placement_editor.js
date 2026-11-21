@@ -5,6 +5,7 @@ const canvas = document.querySelector("#editor-canvas");
 const ctx = canvas.getContext("2d");
 const placeholder = document.querySelector("#canvas-empty");
 const previewImage = document.querySelector("#preview-image");
+const sketchOverlay = document.querySelector("#editor-sketch-overlay");
 const designImage = document.querySelector("#design-preview");
 const message = document.querySelector("#editor-message");
 const help = document.querySelector("#editor-help");
@@ -24,8 +25,17 @@ let designUrl = "";
 let hasDesign = false;
 let drag = null;
 let pending = null;
+let previewTimer;
 let mode = "before";
 let outline = null;
+
+function isConvex(corners) {
+    return corners.every((a, i) => {
+        const b = corners[(i + 1) % 4];
+        const c = corners[(i + 2) % 4];
+        return (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x) > 0;
+    });
+}
 
 function orderedOutline(corners) {
     if (corners.length !== 4) return null;
@@ -33,13 +43,17 @@ function orderedOutline(corners) {
     const cy = corners.reduce((sum, p) => sum + p.y, 0) / 4;
     const angle = (p) => Math.atan2(p.y - cy, p.x - cx);
     const ordered = [...corners].sort((a, b) => angle(a) - angle(b));
-    const turns = ordered.map((a, i) => {
-        const b = ordered[(i + 1) % 4];
-        const c = ordered[(i + 2) % 4];
-        return (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
-    });
-    if (turns.some((turn) => turn <= 0)) return null;
-    return ordered;
+    if (!isConvex(ordered)) return null;
+    const first = ordered.reduce((best, point, index) => {
+        const current = ordered[best];
+        const difference = point.x + point.y - (current.x + current.y);
+        return difference < 0 || (difference === 0 && point.x < current.x) ? index : best;
+    }, 0);
+    return [...ordered.slice(first), ...ordered.slice(0, first)];
+}
+
+function defaultPoints() {
+    return [{ x: .2, y: .2 }, { x: .8, y: .2 }, { x: .8, y: .8 }, { x: .2, y: .8 }];
 }
 
 function setMessage(text, error = false) {
@@ -48,28 +62,44 @@ function setMessage(text, error = false) {
 }
 
 function refreshControls() {
-    const canPreview = Boolean(photo && hasDesign && outline && !pending);
-    previewButton.disabled = !canPreview;
-    submitButton.disabled = !canPreview || !renderedUrl;
-    afterButton.disabled = !renderedUrl;
-    resetButton.disabled = points.length === 0;
-    stage.hidden = !photo || mode === "after";
-    previewImage.hidden = mode !== "after";
+    const ready = Boolean(photo && hasDesign);
+    const editing = mode === "after";
+    previewButton.disabled = !ready || Boolean(pending);
+    submitButton.disabled = !ready || !renderedUrl;
+    afterButton.disabled = !ready;
+    resetButton.disabled = !editing;
+    stage.hidden = !photo;
+    stage.classList.toggle("is-editable", editing);
+    previewImage.hidden = !editing || !renderedUrl;
+    sketchOverlay.hidden = !editing || !outline || Boolean(renderedUrl);
     placeholder.hidden = Boolean(photo);
     beforeButton.setAttribute("aria-pressed", String(mode === "before"));
     afterButton.setAttribute("aria-pressed", String(mode === "after"));
 
-    if (mode === "after") {
-        help.textContent = "Нажмите «До», чтобы скорректировать углы.";
-    } else if (points.length === 4 && !outline) {
-        help.textContent = "Переместите точки на четыре внешних угла стены. Три точки не должны лежать на одной линии.";
-    } else if (outline) {
+    if (editing) {
         help.textContent = "Перетащите угол или выберите его клавишей Tab. Стрелки сдвигают точку на пиксель, Shift со стрелкой — на 10.";
     } else {
-        help.textContent = photo
-            ? "Отметьте угол " + (points.length + 1) + " из 4. Порядок произвольный."
-            : "Укажите четыре угла стены в любом порядке.";
+        help.textContent = ready ? "Нажмите «Посмотреть результат», чтобы подогнать мурал." : "Выберите фасад и эскиз.";
     }
+}
+
+function positionSketch(width, height) {
+    const [a, b, c, d] = outline.map(({ x, y }) => [x * width, y * height]);
+    const [ax, ay] = a;
+    const [bx, by] = b;
+    const [cx, cy] = c;
+    const [dx, dy] = d;
+    const tx = ax - bx + cx - dx;
+    const ty = ay - by + cy - dy;
+    const determinant = (bx - cx) * (dy - cy) - (dx - cx) * (by - cy);
+    const g = (tx * (dy - cy) - (dx - cx) * ty) / determinant;
+    const h = ((bx - cx) * ty - tx * (by - cy)) / determinant;
+    // Project the overlay onto the same four corners sent to the server.
+    sketchOverlay.style.transform = `matrix3d(${[
+        ((1 + g) * bx - ax) / width, ((1 + g) * by - ay) / width, 0, g / width,
+        ((1 + h) * dx - ax) / height, ((1 + h) * dy - ay) / height, 0, h / height,
+        0, 0, 1, 0, ax, ay, 0, 1,
+    ].join(",")})`;
 }
 
 function draw() {
@@ -87,29 +117,13 @@ function draw() {
 
     handles.forEach((handle, index) => {
         const point = points[index];
-        handle.hidden = !point;
+        handle.hidden = mode !== "after" || !point;
         if (point) {
             handle.style.setProperty("--corner-x", point.x * 100 + "%");
             handle.style.setProperty("--corner-y", point.y * 100 + "%");
         }
     });
-    if (points.length === 0) return;
-    ctx.beginPath();
-    if (points.length === 4 && !outline) return;
-    (outline || points).forEach((point, index) => {
-        const x = point.x * width;
-        const y = point.y * height;
-        if (index === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    });
-    if (points.length === 4) {
-        ctx.closePath();
-        ctx.fillStyle = "rgba(211, 245, 105, .23)";
-        ctx.fill();
-    }
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#ddff79";
-    ctx.stroke();
+    if (!sketchOverlay.hidden) positionSketch(width, height);
 }
 
 function show(next) {
@@ -119,6 +133,7 @@ function show(next) {
 }
 
 function invalidatePreview() {
+    clearTimeout(previewTimer);
     if (pending) {
         pending.abort();
         pending = null;
@@ -127,7 +142,7 @@ function invalidatePreview() {
     renderedUrl = "";
     previewImage.removeAttribute("src");
     setMessage("");
-    show("before");
+    show(mode);
 }
 
 function syncPoints() {
@@ -151,8 +166,13 @@ function clampPoint({ x, y }) {
 function movePoint(index, position) {
     const point = clampPoint(position);
     if (point.x === points[index].x && point.y === points[index].y) return;
-    points[index] = point;
+    const next = [...points];
+    next[index] = point;
+    // Keep the four handles in their cyclic order and reject folds or overlaps.
+    if (!isConvex(next)) return;
+    points = next;
     syncPoints();
+    if (!drag) schedulePreview();
 }
 
 function finishDrag() {
@@ -162,18 +182,14 @@ function finishDrag() {
     const { pointerId } = drag;
     drag = null;
     if (stage.hasPointerCapture(pointerId)) stage.releasePointerCapture(pointerId);
+    if (mode === "after" && !renderedUrl) schedulePreview();
 }
 
 stage.addEventListener("pointerdown", (event) => {
-    if (!event.isPrimary || event.button !== 0 || drag) return;
-    const origin = pointerPosition(event);
     const handle = event.target.closest("[data-corner]");
-    const index = handle ? Number(handle.dataset.corner) : points.length;
-    if (!handle) {
-        if (index === handles.length) return;
-        points.push(clampPoint(origin));
-        syncPoints();
-    }
+    if (mode !== "after" || !handle || !event.isPrimary || event.button !== 0 || drag) return;
+    const origin = pointerPosition(event);
+    const index = Number(handle.dataset.corner);
     drag = { index, origin, start: points[index], pointerId: event.pointerId };
     handles[index].classList.add("is-dragged");
     stage.classList.add("is-dragging");
@@ -199,7 +215,7 @@ const arrowDirections = new Map([
 stage.addEventListener("keydown", (event) => {
     const handle = event.target.closest("[data-corner]");
     const direction = arrowDirections.get(event.key);
-    if (!handle || !direction || drag) return;
+    if (mode !== "after" || !handle || !direction || drag) return;
     event.preventDefault();
     const index = Number(handle.dataset.corner);
     const [horizontal, vertical] = direction;
@@ -213,11 +229,15 @@ stage.addEventListener("keydown", (event) => {
 window.addEventListener("resize", draw);
 resetButton.addEventListener("click", () => {
     finishDrag();
-    points = [];
+    points = defaultPoints();
     syncPoints();
+    schedulePreview();
 });
-beforeButton.addEventListener("click", () => show("before"));
-afterButton.addEventListener("click", () => show("after"));
+beforeButton.addEventListener("click", () => {
+    finishDrag();
+    show("before");
+});
+afterButton.addEventListener("click", openAfter);
 
 async function getCatalog(url) {
     const response = await fetch(url);
@@ -244,6 +264,7 @@ async function choosePhoto(restorePoints = false) {
         points = [];
         outline = null;
     }
+    mode = "before";
     invalidatePreview();
 
     const url = file ? URL.createObjectURL(file) : (await facadeCatalog).get(selection);
@@ -275,6 +296,8 @@ async function chooseDesign() {
     designImage.removeAttribute("src");
     if (designUrl) URL.revokeObjectURL(designUrl);
     designUrl = "";
+    sketchOverlay.removeAttribute("src");
+    mode = "before";
     invalidatePreview();
 
     const url = file ? URL.createObjectURL(file) : (await designCatalog).get(selection);
@@ -293,6 +316,7 @@ async function chooseDesign() {
         await designImage.decode();
         if (version !== designVersion) return;
         designImage.hidden = false;
+        sketchOverlay.src = url;
         hasDesign = true;
         refreshControls();
     } catch {
@@ -317,7 +341,25 @@ inputs.mural_file.addEventListener("change", () => {
     chooseDesign();
 });
 
-previewButton.addEventListener("click", async () => {
+function schedulePreview() {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(renderPreview, 180);
+}
+
+function openAfter() {
+    if (!photo || !hasDesign) return;
+    mode = "after";
+    if (!outline) {
+        points = defaultPoints();
+        syncPoints();
+    } else {
+        show("after");
+    }
+    if (!renderedUrl && !pending) renderPreview();
+}
+
+async function renderPreview() {
+    if (!photo || !hasDesign || !outline) return;
     invalidatePreview();
     const controller = new AbortController();
     pending = controller;
@@ -343,7 +385,7 @@ previewButton.addEventListener("click", async () => {
 
         renderedUrl = URL.createObjectURL(blob);
         previewImage.src = renderedUrl;
-        show("after");
+        show(mode);
         setMessage("Предпросмотр готов.");
     } catch (error) {
         if (pending === controller) {
@@ -355,7 +397,9 @@ previewButton.addEventListener("click", async () => {
             refreshControls();
         }
     }
-});
+}
+
+previewButton.addEventListener("click", openAfter);
 
 form.addEventListener("submit", (event) => {
     if (submitButton.disabled) {
@@ -377,7 +421,7 @@ try {
     if (Array.isArray(saved) && saved.length === 4 && saved.every((point) =>
         point && Number.isFinite(point.x) && Number.isFinite(point.y) &&
         point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1)) {
-        points = saved;
+        points = orderedOutline(saved) || [];
     }
 } catch {
     // An empty field is expected on the first visit.

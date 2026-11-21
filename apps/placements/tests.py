@@ -103,7 +103,9 @@ class PlacementWorkflowTests(TestCase):
 
         reviewer.post(review, {"status": Placement.Status.APPROVED})
         self.assertContains(Client().get(reverse("home")), project.title)
-        self.assertEqual(Client().get(image).status_code, 200)
+        public_image = Client().get(image)
+        public_image.close()
+        self.assertEqual(public_image.status_code, 200)
         self.assertEqual(Client().get(reverse("map_api")).json()["projects"][0]["title"], project.title)
 
     def test_home_keeps_studio_cat_as_featured_project(self):
