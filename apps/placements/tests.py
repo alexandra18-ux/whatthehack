@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.utils.html import escape
 from PIL import Image
 
-from apps.buildings.models import Building, FacadePhoto, Panorama
+from apps.buildings.models import Building, FacadePhoto
 from apps.murals.models import MuralDesign
 from apps.users.models import AccountRestriction
 
@@ -122,29 +122,14 @@ class PlacementWorkflowTests(TestCase):
         reviewer.post(review, {"status": Placement.Status.APPROVED})
         self.assertContains(Client().get(reverse("home")), project.title)
         public_image = Client().get(image)
-        public_image.close()
         self.assertEqual(public_image.status_code, 200)
+        self.assertTrue(b"".join(public_image.streaming_content))
         self.assertEqual(Client().get(reverse("map_api")).json()["projects"][0]["title"], project.title)
 
-    def test_home_keeps_studio_cat_as_featured_project(self):
-        title = "Мурал Котъ Саратовскiй"
-        self.create_work("Другой мурал", timezone.now())
-        visitor = Client()
-        home = reverse("home")
-        self.assertIsNone(visitor.get(home).context["featured_project"])
-
-        self.owner.username = "Murrralium Studio"
-        self.owner.save(update_fields=["username"])
-        featured = self.create_work(title, timezone.now() - timedelta(days=1))
-        self.create_work("Новая публикация", timezone.now())
-        response = visitor.get(home)
-        self.assertEqual(response.context["featured_project"], featured)
-        self.assertEqual(response.context["projects"][0].title, "Новая публикация")
-        self.assertContains(response, f'class="hero-image" href="{reverse("placement", args=[featured.pk])}"')
-
-        featured.status = Placement.Status.REVISION
-        featured.save(update_fields=["status"])
-        self.assertIsNone(visitor.get(home).context["featured_project"])
+    def test_home_shows_static_cat_without_published_projects(self):
+        response = Client().get(reverse("home"))
+        self.assertEqual(response.context["projects"], [])
+        self.assertContains(response, 'src="/static/images/mural-cat.png"')
 
     def test_existing_graffiti_rejects_invalid_photo(self):
         response = self.client.post(reverse("create"), {
@@ -164,13 +149,15 @@ class PlacementWorkflowTests(TestCase):
         self.assertEqual(image.getpixel((40, 30)), (100, 150, 200))
         self.assertFalse(Placement.objects.exists())
 
-    def test_saved_panorama_facade_remains_available_as_a_photo(self):
+    def test_saved_facade_photo_remains_available_when_revising_a_project(self):
         response = self.client.post(reverse("create"), self.payload())
         project = Placement.objects.get()
-        panorama = Panorama.objects.create(building=self.building, title="Архивная панорама", credit="Автор панорамы")
-        project.facade_photo.panorama = panorama
-        project.facade_photo.save(update_fields=["panorama"])
-        self.assertContains(self.client.get(response.url), panorama.credit)
+        self.assertRedirects(response, reverse("placement", args=[project.pk]))
+        facade_url = reverse("project_image", args=[project.pk, "before"])
+        facade_response = self.client.get(facade_url)
+        self.assertEqual(facade_response.status_code, 200)
+        with Image.open(io.BytesIO(b"".join(facade_response.streaming_content))) as facade_image:
+            self.assertEqual(facade_image.getpixel((0, 0)), (200, 200, 200))
 
         project.status = Placement.Status.REVISION
         project.save(update_fields=["status"])

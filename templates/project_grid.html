@@ -42,7 +42,6 @@
       {% include "account/trash_icon.html" %}
     </a>
     {% endif %}
-    {% include "panorama_credit.html" with panorama=project.facade_photo.panorama %}
   </article>
   {% empty %}
   <p class="empty">{{ empty_copy|default:"Здесь пока нет проектов." }}</p>

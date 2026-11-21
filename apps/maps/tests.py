@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.buildings.addresses import find_addresses
-from apps.buildings.models import Building, FacadePhoto, Panorama
+from apps.buildings.models import Building, FacadePhoto
 from apps.murals.models import MuralDesign
 from apps.placements.models import Placement
 
@@ -19,7 +19,6 @@ class MapPageTests(TestCase):
     @override_settings(YANDEX_MAPS_API_KEY="test-browser-key")
     def test_panorama_navigation_is_external_even_when_a_key_is_configured(self):
         building = Building.objects.create(address="Московская улица, 55", latitude=51.532716, longitude=46.039064)
-        Panorama.objects.create(building=building, title="Архивная панорама", is_public=True)
         for url in (reverse("map"), reverse("building", args=[building.pk])):
             page = self.client.get(url)
             self.assertContains(page, 'target="_blank" rel="noopener noreferrer">Открыть в Яндекс Картах')

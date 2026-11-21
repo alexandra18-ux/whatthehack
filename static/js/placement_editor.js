@@ -4,29 +4,23 @@ const handles = [...stage.querySelectorAll("[data-corner]")];
 const canvas = document.querySelector("#editor-canvas");
 const ctx = canvas.getContext("2d");
 const placeholder = document.querySelector("#canvas-empty");
-const previewImage = document.querySelector("#preview-image");
 const sketchOverlay = document.querySelector("#editor-sketch-overlay");
+const sketchOutline = document.querySelector("#editor-sketch-outline");
+const outlineStrokes = sketchOutline.querySelectorAll("polygon");
 const designImage = document.querySelector("#design-preview");
 const message = document.querySelector("#editor-message");
-const help = document.querySelector("#editor-help");
-const resetButton = document.querySelector("#reset-corners");
-const previewButton = document.querySelector("#render-preview");
 const submitButton = document.querySelector("#submit-placement");
-const beforeButton = document.querySelector("#show-before");
-const afterButton = document.querySelector("#show-after");
+const opacity = document.querySelector("#mural-opacity");
+const opacityValue = document.querySelector("#mural-opacity-value");
 const inputs = form.elements;
 
 let points = [];
 let photo = null;
 let photoVersion = 0;
 let designVersion = 0;
-let renderedUrl = "";
 let designUrl = "";
 let hasDesign = false;
 let drag = null;
-let pending = null;
-let previewTimer;
-let mode = "before";
 let outline = null;
 
 function isConvex(corners) {
@@ -62,26 +56,24 @@ function setMessage(text, error = false) {
 }
 
 function refreshControls() {
-    const ready = Boolean(photo && hasDesign);
-    const editing = mode === "after";
-    previewButton.disabled = !ready || Boolean(pending);
-    submitButton.disabled = !ready || !renderedUrl;
-    afterButton.disabled = !ready;
-    resetButton.disabled = !editing;
+    const ready = Boolean(photo && hasDesign && outline);
+    opacity.disabled = !ready;
+    submitButton.disabled = !ready;
     stage.hidden = !photo;
-    stage.classList.toggle("is-editable", editing);
-    previewImage.hidden = !editing || !renderedUrl;
-    sketchOverlay.hidden = !editing || !outline || Boolean(renderedUrl);
+    stage.classList.toggle("is-editable", ready);
+    sketchOverlay.hidden = !ready;
+    sketchOutline.toggleAttribute("hidden", !ready);
     placeholder.hidden = Boolean(photo);
-    beforeButton.setAttribute("aria-pressed", String(mode === "before"));
-    afterButton.setAttribute("aria-pressed", String(mode === "after"));
-
-    if (editing) {
-        help.textContent = "Перетащите угол или выберите его клавишей Tab. Стрелки сдвигают точку на пиксель, Shift со стрелкой — на 10.";
-    } else {
-        help.textContent = ready ? "Нажмите «Посмотреть результат», чтобы подогнать мурал." : "Выберите фасад и эскиз.";
-    }
 }
+
+function updateOpacity() {
+    sketchOverlay.style.opacity = 1 - Number(opacity.value) / 100;
+    opacityValue.value = opacity.value + "%";
+    opacity.setAttribute("aria-valuetext", opacityValue.value);
+}
+
+opacity.addEventListener("input", updateOpacity);
+updateOpacity();
 
 function positionSketch(width, height) {
     const [a, b, c, d] = outline.map(({ x, y }) => [x * width, y * height]);
@@ -117,7 +109,7 @@ function draw() {
 
     handles.forEach((handle, index) => {
         const point = points[index];
-        handle.hidden = mode !== "after" || !point;
+        handle.hidden = sketchOverlay.hidden || !point;
         if (point) {
             handle.style.setProperty("--corner-x", point.x * 100 + "%");
             handle.style.setProperty("--corner-y", point.y * 100 + "%");
@@ -126,29 +118,14 @@ function draw() {
     if (!sketchOverlay.hidden) positionSketch(width, height);
 }
 
-function show(next) {
-    mode = next;
-    refreshControls();
-    draw();
-}
-
-function invalidatePreview() {
-    clearTimeout(previewTimer);
-    if (pending) {
-        pending.abort();
-        pending = null;
-    }
-    if (renderedUrl) URL.revokeObjectURL(renderedUrl);
-    renderedUrl = "";
-    previewImage.removeAttribute("src");
-    setMessage("");
-    show(mode);
-}
-
 function syncPoints() {
+    if (photo && hasDesign && !points.length) points = defaultPoints();
     outline = orderedOutline(points);
     inputs.corners.value = JSON.stringify(outline || points);
-    invalidatePreview();
+    const vertices = (outline || []).map(({ x, y }) => `${x * 100},${y * 100}`).join(" ");
+    outlineStrokes.forEach((stroke) => stroke.setAttribute("points", vertices));
+    refreshControls();
+    draw();
 }
 
 function pointerPosition(event) {
@@ -172,7 +149,6 @@ function movePoint(index, position) {
     if (!isConvex(next)) return;
     points = next;
     syncPoints();
-    if (!drag) schedulePreview();
 }
 
 function finishDrag() {
@@ -182,12 +158,11 @@ function finishDrag() {
     const { pointerId } = drag;
     drag = null;
     if (stage.hasPointerCapture(pointerId)) stage.releasePointerCapture(pointerId);
-    if (mode === "after" && !renderedUrl) schedulePreview();
 }
 
 stage.addEventListener("pointerdown", (event) => {
     const handle = event.target.closest("[data-corner]");
-    if (mode !== "after" || !handle || !event.isPrimary || event.button !== 0 || drag) return;
+    if (sketchOverlay.hidden || !handle || !event.isPrimary || event.button !== 0 || drag) return;
     const origin = pointerPosition(event);
     const index = Number(handle.dataset.corner);
     drag = { index, origin, start: points[index], pointerId: event.pointerId };
@@ -215,7 +190,7 @@ const arrowDirections = new Map([
 stage.addEventListener("keydown", (event) => {
     const handle = event.target.closest("[data-corner]");
     const direction = arrowDirections.get(event.key);
-    if (mode !== "after" || !handle || !direction || drag) return;
+    if (sketchOverlay.hidden || !handle || !direction || drag) return;
     event.preventDefault();
     const index = Number(handle.dataset.corner);
     const [horizontal, vertical] = direction;
@@ -227,18 +202,6 @@ stage.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("resize", draw);
-resetButton.addEventListener("click", () => {
-    finishDrag();
-    points = defaultPoints();
-    syncPoints();
-    schedulePreview();
-});
-beforeButton.addEventListener("click", () => {
-    finishDrag();
-    show("before");
-});
-afterButton.addEventListener("click", openAfter);
-
 async function getCatalog(url) {
     const response = await fetch(url);
     if (!response.ok) throw new Error("Не удалось загрузить каталог.");
@@ -264,8 +227,8 @@ async function choosePhoto(restorePoints = false) {
         points = [];
         outline = null;
     }
-    mode = "before";
-    invalidatePreview();
+    setMessage("");
+    refreshControls();
 
     const url = file ? URL.createObjectURL(file) : (await facadeCatalog).get(selection);
     if (!url) {
@@ -288,6 +251,7 @@ async function choosePhoto(restorePoints = false) {
 }
 
 async function chooseDesign() {
+    finishDrag();
     const version = ++designVersion;
     const file = inputs.mural_file.files[0];
     const selection = inputs.design.value;
@@ -297,8 +261,9 @@ async function chooseDesign() {
     if (designUrl) URL.revokeObjectURL(designUrl);
     designUrl = "";
     sketchOverlay.removeAttribute("src");
-    mode = "before";
-    invalidatePreview();
+    setMessage("");
+    refreshControls();
+    draw();
 
     const url = file ? URL.createObjectURL(file) : (await designCatalog).get(selection);
     if (version !== designVersion) {
@@ -318,7 +283,7 @@ async function chooseDesign() {
         designImage.hidden = false;
         sketchOverlay.src = url;
         hasDesign = true;
-        refreshControls();
+        syncPoints();
     } catch {
         if (version === designVersion) setMessage("Не удалось открыть эскиз.", true);
     }
@@ -340,66 +305,6 @@ inputs.mural_file.addEventListener("change", () => {
     if (inputs.mural_file.files.length) inputs.design.value = "";
     chooseDesign();
 });
-
-function schedulePreview() {
-    clearTimeout(previewTimer);
-    previewTimer = setTimeout(renderPreview, 180);
-}
-
-function openAfter() {
-    if (!photo || !hasDesign) return;
-    mode = "after";
-    if (!outline) {
-        points = defaultPoints();
-        syncPoints();
-    } else {
-        show("after");
-    }
-    if (!renderedUrl && !pending) renderPreview();
-}
-
-async function renderPreview() {
-    if (!photo || !hasDesign || !outline) return;
-    invalidatePreview();
-    const controller = new AbortController();
-    pending = controller;
-    refreshControls();
-    setMessage("Подгоняем мурал к фасаду…");
-
-    try {
-        const data = new FormData(form);
-        data.delete("title");
-        data.delete("description");
-        const response = await fetch(form.dataset.preview, {
-            method: "POST",
-            body: data,
-            signal: controller.signal,
-        });
-        if (!response.ok) {
-            const body = await response.json().catch(() => ({}));
-            const errors = Object.values(body.errors || {}).flat().join(" ");
-            throw new Error(body.error || errors || "Не удалось подготовить предпросмотр.");
-        }
-        const blob = await response.blob();
-        if (pending !== controller) return;
-
-        renderedUrl = URL.createObjectURL(blob);
-        previewImage.src = renderedUrl;
-        show(mode);
-        setMessage("Предпросмотр готов.");
-    } catch (error) {
-        if (pending === controller) {
-            setMessage(error.message || "Не удалось подготовить предпросмотр.", true);
-        }
-    } finally {
-        if (pending === controller) {
-            pending = null;
-            refreshControls();
-        }
-    }
-}
-
-previewButton.addEventListener("click", openAfter);
 
 form.addEventListener("submit", (event) => {
     if (submitButton.disabled) {

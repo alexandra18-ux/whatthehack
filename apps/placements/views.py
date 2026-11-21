@@ -51,17 +51,8 @@ def home(request):
     projects = list(with_feed_comments(with_ratings(published, request.user), request.user))
     for project in projects:
         project.comment_draft = take_comment_draft(request, project)
-    featured_project = min(
-        (
-            project for project in projects
-            if project.title == "Мурал Котъ Саратовскiй" and project.author.username == "Murrralium Studio"
-        ),
-        key=lambda project: project.pk,
-        default=None,
-    )
     return render(request, "home.html", {
         "projects": projects,
-        "featured_project": featured_project,
         "in_feed": True,
     })
 
@@ -109,7 +100,7 @@ def is_published(project):
 
 
 def visible_project(request, pk, *, include_ratings=False):
-    projects = Placement.objects.select_related("building", "author__profile", "facade_photo__panorama")
+    projects = Placement.objects.select_related("building", "author__profile", "facade_photo")
     if include_ratings:
         projects = with_ratings(projects, request.user)
     project = get_object_or_404(projects, pk=pk)

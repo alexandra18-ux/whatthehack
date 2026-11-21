@@ -44,7 +44,6 @@
   <img class="building-cover" data-image="after" src="{% url 'project_image' project.pk 'result' %}" alt="Фасад с муралом">
   <img class="building-cover" data-image="before" src="{% url 'project_image' project.pk 'before' %}" alt="Исходный фасад" loading="lazy" hidden>
 </div>
-{% include "panorama_credit.html" with panorama=project.facade_photo.panorama %}
 {% endif %}
 {% if published %}
 <p class="project-feed-return"><a class="button outline" href="{% url 'home' %}#project-{{ project.pk }}">← Вернуться к ленте</a></p>

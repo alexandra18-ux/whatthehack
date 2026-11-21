@@ -2,12 +2,11 @@
 {% block title %}Редактор мурала · Murrralium{% endblock %}
 {% block content %}
 <a class="back-link" href="{% url 'building' building.pk %}">{{ building.address }}</a>
-<header class="page-heading"><h1>{% if revision %}Доработка заявки{% else %}Создать проект{% endif %}</h1><p>Выберите фасад и эскиз, затем подгоните мурал в режиме «После».</p></header>
+<header class="page-heading"><h1>{% if revision %}Доработка заявки{% else %}Создать проект{% endif %}</h1><p>Выберите фасад и эскиз, затем подгоните мурал по четырём углам.</p></header>
 {% if not revision %}{% include "placement_modes.html" %}{% endif %}
 {% if revision %}<p class="notice">{{ revision.revision_notes|linebreaksbr }}</p>{% endif %}
-{% url 'preview' as default_preview %}
 <form class="editor-layout" id="placement-editor" method="post" enctype="multipart/form-data"
-      data-preview="{{ preview_url|default:default_preview }}" data-facades="{% url 'facades_api' building.pk %}" data-designs="{% url 'designs_api' building.pk %}"
+      data-facades="{% url 'facades_api' building.pk %}" data-designs="{% url 'designs_api' building.pk %}"
       {% if revision %}
       data-current-facade="{{ revision.facade_photo_id }}" data-current-facade-url="{% url 'asset' 'facade' revision.facade_photo_id %}"
       data-current-design="{{ revision.mural_design_id }}" data-current-design-url="{% url 'asset' 'design' revision.mural_design_id %}"
@@ -16,26 +15,26 @@
   <input type="hidden" name="building" value="{{ building.pk }}">
   {{ form.corners }}
   <div class="editor-main">
-    <div class="editor-toolbar">
-      <div class="segmented" aria-label="Предпросмотр">
-        <button type="button" id="show-before" aria-pressed="true">До</button>
-        <button type="button" id="show-after" aria-pressed="false" disabled>После</button>
-      </div>
-      <button class="button outline compact" type="button" id="reset-corners" disabled>Сбросить точки</button>
+    <div class="editor-opacity">
+      <label for="mural-opacity">Прозрачность мурала</label>
+      <input type="range" id="mural-opacity" min="0" max="100" value="0" disabled>
+      <output id="mural-opacity-value" for="mural-opacity">0%</output>
     </div>
     <div class="canvas-frame">
       <p id="canvas-empty">Выберите фотографию фасада</p>
       <div id="facade-stage" class="facade-stage" tabindex="-1" aria-label="Фасад" hidden>
         <canvas id="editor-canvas" aria-hidden="true"></canvas>
         <img id="editor-sketch-overlay" class="editor-sketch-overlay" alt="" hidden>
-        <img id="preview-image" class="editor-result" alt="Предпросмотр фасада с муралом" hidden>
-        <button class="corner-handle" type="button" data-corner="0" aria-label="Угол 1" aria-describedby="editor-help" hidden>1</button>
-        <button class="corner-handle" type="button" data-corner="1" aria-label="Угол 2" aria-describedby="editor-help" hidden>2</button>
-        <button class="corner-handle" type="button" data-corner="2" aria-label="Угол 3" aria-describedby="editor-help" hidden>3</button>
-        <button class="corner-handle" type="button" data-corner="3" aria-label="Угол 4" aria-describedby="editor-help" hidden>4</button>
+        <svg id="editor-sketch-outline" class="editor-sketch-outline" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" hidden>
+          <polygon vector-effect="non-scaling-stroke"></polygon>
+          <polygon vector-effect="non-scaling-stroke"></polygon>
+        </svg>
+        <button class="corner-handle" type="button" data-corner="0" aria-label="Угол 1" hidden>1</button>
+        <button class="corner-handle" type="button" data-corner="1" aria-label="Угол 2" hidden>2</button>
+        <button class="corner-handle" type="button" data-corner="2" aria-label="Угол 3" hidden>3</button>
+        <button class="corner-handle" type="button" data-corner="3" aria-label="Угол 4" hidden>4</button>
       </div>
     </div>
-    <p class="editor-help" id="editor-help">Выберите фасад и эскиз.</p>
     <p id="editor-message" class="editor-message" role="status"></p>
     {{ form.non_field_errors }}{{ form.corners.errors }}
     <noscript><p class="notice">Для редактора нужен JavaScript.</p></noscript>
@@ -57,7 +56,6 @@
       {{ form.mural_file.as_field_group }}
       <img id="design-preview" class="design-preview" alt="Выбранный эскиз" hidden>
     </fieldset>
-    <button id="render-preview" class="button outline" type="button" disabled>Посмотреть результат</button>
     <fieldset>
       <legend>Публикация</legend>
       {{ form.title.as_field_group }}
@@ -68,5 +66,5 @@
 </form>
 {% endblock %}
 {% block scripts %}
-<script defer src="{% static 'js/placement_editor.js' %}?v=3"></script>
+<script defer src="{% static 'js/placement_editor.js' %}?v=5"></script>
 {% endblock %}
