@@ -6,6 +6,17 @@
 
 ### Docker Compose и PostgreSQL
 
+Понадобятся Docker и Docker Compose. Выполняйте команды из корня проекта.
+
+На Linux и macOS:
+
+```sh
+test -f .env || cp .env.example .env
+docker compose up --build
+```
+
+На Windows в PowerShell:
+
 ```powershell
 Copy-Item .env.example .env
 docker compose up --build
@@ -16,6 +27,21 @@ docker compose up --build
 ```powershell
 docker compose exec web python manage.py createsuperuser
 ```
+
+### Linux и macOS без Docker
+
+Понадобится Python 3.13 или 3.14 с модулем `venv`. Выполняйте команды из корня проекта. Для локальной SQLite оставьте `POSTGRES_HOST` пустым.
+
+```sh
+test -f .env || cp .env.example .env
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python manage.py migrate
+.venv/bin/python manage.py seed_demo
+.venv/bin/python manage.py runserver
+```
+
+Откройте [Murrralium](http://localhost:8000/). Команда `seed_demo` добавляет демонстрационные проекты. Для входа в [Django Admin](http://localhost:8000/admin/) выполните `.venv/bin/python manage.py createsuperuser` в другом терминале из корня проекта.
 
 ### Windows без Docker
 
