@@ -51,17 +51,8 @@ def home(request):
     projects = list(with_feed_comments(with_ratings(published, request.user), request.user))
     for project in projects:
         project.comment_draft = take_comment_draft(request, project)
-    featured_project = min(
-        (
-            project for project in projects
-            if project.title == "Мурал Котъ Саратовскiй" and project.author.username == "Muralium Studio"
-        ),
-        key=lambda project: project.pk,
-        default=None,
-    )
     return render(request, "home.html", {
         "projects": projects,
-        "featured_project": featured_project,
         "in_feed": True,
     })
 

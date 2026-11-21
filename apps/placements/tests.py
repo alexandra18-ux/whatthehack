@@ -106,25 +106,10 @@ class PlacementWorkflowTests(TestCase):
         self.assertEqual(Client().get(image).status_code, 200)
         self.assertEqual(Client().get(reverse("map_api")).json()["projects"][0]["title"], project.title)
 
-    def test_home_keeps_studio_cat_as_featured_project(self):
-        title = "Мурал Котъ Саратовскiй"
-        self.create_work("Другой мурал", timezone.now())
-        visitor = Client()
-        home = reverse("home")
-        self.assertIsNone(visitor.get(home).context["featured_project"])
-
-        self.owner.username = "Muralium Studio"
-        self.owner.save(update_fields=["username"])
-        featured = self.create_work(title, timezone.now() - timedelta(days=1))
-        self.create_work("Новая публикация", timezone.now())
-        response = visitor.get(home)
-        self.assertEqual(response.context["featured_project"], featured)
-        self.assertEqual(response.context["projects"][0].title, "Новая публикация")
-        self.assertContains(response, f'class="hero-image" href="{reverse("placement", args=[featured.pk])}"')
-
-        featured.status = Placement.Status.REVISION
-        featured.save(update_fields=["status"])
-        self.assertIsNone(visitor.get(home).context["featured_project"])
+    def test_home_shows_static_cat_without_published_projects(self):
+        response = Client().get(reverse("home"))
+        self.assertEqual(response.context["projects"], [])
+        self.assertContains(response, 'src="/static/images/mural-cat.jpg"')
 
     def test_existing_graffiti_rejects_invalid_photo(self):
         response = self.client.post(reverse("create"), {
