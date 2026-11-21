@@ -313,8 +313,6 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .address-results li { display: grid; gap: 8px; padding: 9px; border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
 .address-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .address-actions [aria-pressed="true"] { background: var(--selected); }
-.panorama-attribution { margin-block: 6px; color: var(--muted); font-size: .82rem; }
-.panorama-attribution a { color: var(--link); }
 .street-walk-link { margin-top: 8px; }
 .map-address-result { min-width: 155px; font: inherit; }
 .map-address-result p { margin: 4px 0 8px; font-weight: 650; }

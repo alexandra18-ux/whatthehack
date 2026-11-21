@@ -100,7 +100,7 @@ def is_published(project):
 
 
 def visible_project(request, pk, *, include_ratings=False):
-    projects = Placement.objects.select_related("building", "author__profile", "facade_photo__panorama")
+    projects = Placement.objects.select_related("building", "author__profile", "facade_photo")
     if include_ratings:
         projects = with_ratings(projects, request.user)
     project = get_object_or_404(projects, pk=pk)

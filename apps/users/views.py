@@ -69,7 +69,7 @@ def account(request):
         ).exclude(author=request.user).select_related("placement", "author__profile")
         context["page"] = Paginator(comments, 12).get_page(request.GET.get("page"))
     elif tab == "wall":
-        projects = Placement.objects.filter(author=request.user).select_related("building", "author__profile", "facade_photo__panorama")
+        projects = Placement.objects.filter(author=request.user).select_related("building", "author__profile")
         page = Paginator(projects, 12).get_page(request.GET.get("page"))
         context.update(projects=page.object_list, page=page)
     return render(request, "mine.html", context)
@@ -102,7 +102,7 @@ def public_profile(request, pk):
         authors = authors.filter(is_active=True)
     author = get_object_or_404(authors, pk=pk)
     projects = (
-        Placement.objects.select_related("building", "author__profile", "facade_photo__panorama")
+        Placement.objects.select_related("building", "author__profile")
         if may_delete_other_works else published_placements()
     )
     page = Paginator(projects.filter(author=author), 12).get_page(request.GET.get("page"))

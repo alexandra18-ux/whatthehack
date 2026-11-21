@@ -1,6 +1,0 @@
-{% if panorama.credit %}
-  <p class="panorama-attribution">Фрагмент панорамы
-    {% if panorama.source_url %}<a href="{{ panorama.source_url }}">{{ panorama.credit }}</a>{% else %}{{ panorama.credit }}{% endif %}
-    {% if panorama.license_url %} · <a href="{{ panorama.license_url }}">{{ panorama.license_name }}</a>{% elif panorama.license_name %} · {{ panorama.license_name }}{% endif %}
-  </p>
-{% endif %}

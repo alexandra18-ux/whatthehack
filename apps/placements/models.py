@@ -121,7 +121,7 @@ def with_ratings(queryset, viewer):
 def published_placements():
     return Placement.objects.filter(
         status=Placement.Status.APPROVED, published_at__isnull=False,
-    ).select_related("building", "author__profile", "facade_photo__panorama").order_by("-published_at", "-pk")
+    ).select_related("building", "author__profile").order_by("-published_at", "-pk")
 
 
 def author_rating(author):
