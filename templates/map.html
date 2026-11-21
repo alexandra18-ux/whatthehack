@@ -80,10 +80,10 @@
          {% if selecting_graffiti_building %}data-graffiti-create="{% url 'create' %}"{% endif %}
          data-selected="{{ selected_building }}" data-tile-url="{{ map_tile_url }}"></div>
     <div class="map-footer">
-      <div class="map-legend" aria-label="Обозначения карты">
-        <span><i aria-hidden="true"></i>Здание</span>
-        <span><i class="map-legend-project" aria-hidden="true"></i>Здание с проектами</span>
-        <span><i class="map-legend-selected" aria-hidden="true"></i>Найденный адрес</span>
+      <div class="map-legend" role="group" aria-label="Показать метки на карте">
+        <label><input type="checkbox" data-map-layer="buildings" checked disabled><i aria-hidden="true"></i>Здание</label>
+        <label><input type="checkbox" data-map-layer="projects" checked disabled><i class="map-legend-project" aria-hidden="true"></i>Здание с проектами</label>
+        <label><input type="checkbox" data-map-layer="addresses" checked disabled><i class="map-legend-selected" aria-hidden="true"></i>Найденный адрес</label>
       </div>
       <p class="map-hint" id="map-hint" role="status">Здание можно выбрать в списке.</p>
     </div>
@@ -93,5 +93,5 @@
 {% endblock %}
 {% block scripts %}
 <script defer src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
-<script defer src="{% static 'js/map.js' %}?v=9"></script>
+<script defer src="{% static 'js/map.js' %}?v=10"></script>
 {% endblock %}

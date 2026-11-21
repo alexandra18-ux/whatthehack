@@ -46,6 +46,22 @@
     leaflet.control.zoom({ position: "topright", zoomInTitle: "Приблизить", zoomOutTitle: "Отдалить" }).addTo(map);
     map.attributionControl.setPrefix(false);
 
+    const markerLayers = {
+        buildings: leaflet.layerGroup(),
+        projects: leaflet.layerGroup(),
+        addresses: leaflet.layerGroup(),
+    };
+    for (const checkbox of document.querySelectorAll("[data-map-layer]")) {
+        const layer = markerLayers[checkbox.dataset.mapLayer];
+        const updateVisibility = () => {
+            if (checkbox.checked) layer.addTo(map);
+            else layer.remove();
+        };
+        checkbox.disabled = false;
+        checkbox.addEventListener("change", updateVisibility);
+        updateVisibility();
+    }
+
     function isOverMap(event) {
         if (Number.isFinite(event.clientX) && Number.isFinite(event.clientY)) {
             return element.contains(document.elementFromPoint(event.clientX, event.clientY));
@@ -138,7 +154,7 @@
             selection = leaflet.circleMarker(point, {
                 radius: 8, color: "#fff", weight: 2, fillColor: "#3e691d",
                 fillOpacity: 1, interactive: false,
-            }).addTo(map);
+            }).addTo(markerLayers.addresses);
         }
     }
 
@@ -273,12 +289,12 @@
 
     function showBuilding(marker) {
         lookup?.abort();
-        selection?.remove();
+        if (selection) markerLayers.addresses.removeLayer(selection);
         selection = undefined;
         highlightAddress(null);
         map.closePopup();
         map.setView(marker.getLatLng(), 17);
-        marker.openPopup();
+        if (map.hasLayer(marker)) marker.openPopup();
     }
 
     async function showMarkers() {
@@ -339,8 +355,9 @@
                     iconSize: hasProjects ? [24, 24] : [20, 20],
                 }),
                 title,
-            }).addTo(map).bindPopup(popup);
-            marker.getElement().setAttribute("aria-label", title);
+            }).bindPopup(popup);
+            marker.on("add", () => marker.getElement().setAttribute("aria-label", title));
+            marker.addTo(hasProjects ? markerLayers.projects : markerLayers.buildings);
             if (image) {
                 bindProjectPreview(marker, previewProject);
                 marker.on("popupopen", () => marker.closeTooltip());
@@ -353,7 +370,7 @@
         const selectedMarker = buildingMarkers.get(element.dataset.selected);
         if (!firstAddress && selectedMarker) {
             map.setView(selectedMarker.getLatLng(), 16);
-            selectedMarker.openPopup();
+            if (map.hasLayer(selectedMarker)) selectedMarker.openPopup();
         }
     }
 
@@ -374,7 +391,7 @@
             }
             catalog.open = false;
             showBuilding(marker);
-            marker.getElement().focus({ preventScroll: true });
+            marker.getElement()?.focus({ preventScroll: true });
         });
     }
 })();
