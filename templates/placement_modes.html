@@ -1,0 +1,5 @@
+{% url 'create' as create_url %}
+<nav class="segmented placement-modes" aria-label="Способ создания проекта">
+  <a href="{{ create_url }}?mode=photo{% if building %}&amp;building={{ building.pk }}{% endif %}"{% if existing_photo %} aria-current="page"{% endif %}>Добавить фото существующего граффити</a>
+  <a href="{{ create_url }}{% if building %}?building={{ building.pk }}{% endif %}"{% if not existing_photo %} aria-current="page"{% endif %}>Создать новое</a>
+</nav>

@@ -48,6 +48,93 @@ class PlacementWorkflowTests(TestCase):
             "mural_file": self.upload("mural.png", "RGBA", (0, 100, 200, 128)),
         }
 
+    def test_existing_graffiti_photo_can_be_revised_and_published(self):
+        create = reverse("create")
+        chooser = self.client.get(create)
+        self.assertContains(chooser, "Добавить фото существующего граффити")
+        self.assertContains(chooser, "Создать новое")
+        self.assertContains(self.client.get(create, {"mode": "photo"}), f'{reverse("map")}?mode=photo')
+        building_id = self.building.pk
+        photo_editor = self.client.get(create, {"mode": "photo", "building": building_id})
+        self.assertContains(photo_editor, 'type="file" name="photo"')
+        self.assertNotContains(photo_editor, 'name="corners"')
+        self.assertContains(self.client.get(create, {"building": building_id}), 'name="corners"')
+
+        response = self.client.post(create, {
+            "building": building_id, "mode": "photo",
+            "title": "Уличное граффити", "description": "Работа на фасаде",
+            "photo": self.upload("graffiti.png", "RGB", (20, 125, 190)),
+            "status": "approved",
+        })
+        project = Placement.objects.get()
+        detail = reverse("placement", args=[project.pk])
+        image = reverse("project_image", args=[project.pk, "result"])
+        self.assertRedirects(response, detail)
+        self.assertTrue(project.is_existing_graffiti)
+        self.assertIsNone(project.mural_design_id)
+        self.assertEqual(project.corners, [])
+        self.assertEqual(project.status, Placement.Status.PENDING)
+        self.assertEqual(Client().get(image).status_code, 404)
+        self.assertContains(self.client.get(detail), "Фото граффити")
+        self.assertNotContains(self.client.get(detail), "data-comparison")
+        self.assertEqual(self.client.get(reverse("project_image", args=[project.pk, "before"])).status_code, 404)
+        photo_response = self.client.get(image)
+        self.assertEqual(photo_response["Content-Type"], "image/jpeg")
+        with Image.open(io.BytesIO(b"".join(photo_response.streaming_content))) as uploaded:
+            self.assertEqual(uploaded.size, (80, 60))
+
+        reviewer = Client()
+        moderator = get_user_model().objects.create_user(username="photo-moderator", is_staff=True)
+        moderator.user_permissions.add(Permission.objects.get(codename="moderate_placement"))
+        reviewer.force_login(moderator)
+        review = reverse("moderation_review", args=[project.pk])
+        self.assertContains(reviewer.get(review), "Фото существующего граффити")
+        self.assertContains(reviewer.get(reverse("admin:placements_placement_change", args=[project.pk])), image)
+        reviewer.post(review, {"status": Placement.Status.REVISION, "revision_notes": "Уточните описание."})
+        revise = reverse("revise", args=[project.pk])
+        self.assertContains(self.client.get(revise), image)
+        original_image = project.result_image.name
+        self.assertRedirects(self.client.post(revise, {
+            "title": project.title, "description": "Обновлённое описание",
+        }), detail)
+        project.refresh_from_db()
+        self.assertEqual(project.result_image.name, original_image)
+        self.assertEqual(project.status, Placement.Status.PENDING)
+
+        reviewer.post(review, {"status": Placement.Status.APPROVED})
+        self.assertContains(Client().get(reverse("home")), project.title)
+        self.assertEqual(Client().get(image).status_code, 200)
+        self.assertEqual(Client().get(reverse("map_api")).json()["projects"][0]["title"], project.title)
+
+    def test_home_keeps_studio_cat_as_featured_project(self):
+        title = "Мурал Котъ Саратовскiй"
+        self.create_work("Другой мурал", timezone.now())
+        visitor = Client()
+        home = reverse("home")
+        self.assertIsNone(visitor.get(home).context["featured_project"])
+
+        self.owner.username = "Muralium Studio"
+        self.owner.save(update_fields=["username"])
+        featured = self.create_work(title, timezone.now() - timedelta(days=1))
+        self.create_work("Новая публикация", timezone.now())
+        response = visitor.get(home)
+        self.assertEqual(response.context["featured_project"], featured)
+        self.assertEqual(response.context["projects"][0].title, "Новая публикация")
+        self.assertContains(response, f'class="hero-image" href="{reverse("placement", args=[featured.pk])}"')
+
+        featured.status = Placement.Status.REVISION
+        featured.save(update_fields=["status"])
+        self.assertIsNone(visitor.get(home).context["featured_project"])
+
+    def test_existing_graffiti_rejects_invalid_photo(self):
+        response = self.client.post(reverse("create"), {
+            "building": self.building.pk, "mode": "photo",
+            "title": "Уличное граффити", "description": "Фото фасада",
+            "photo": SimpleUploadedFile("broken.png", b"invalid"),
+        })
+        self.assertIn("photo", response.context["form"].errors)
+        self.assertFalse(Placement.objects.exists())
+
     def test_preview_preserves_facade_and_blends_transparent_design(self):
         response = self.client.post(reverse("preview"), self.payload())
         self.assertEqual(response.status_code, 200)

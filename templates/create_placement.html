@@ -1,0 +1,48 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}{% if revision %}Доработка заявки{% else %}Создать проект{% endif %} · Murrralium{% endblock %}
+{% block content %}
+{% if building %}
+<a class="back-link" href="{% url 'building' building.pk %}">{{ building.address }}</a>
+{% endif %}
+<header class="page-heading">
+  <h1>{% if revision %}Доработка заявки{% else %}Создать проект{% endif %}</h1>
+</header>
+{% if not revision %}{% include "placement_modes.html" %}{% endif %}
+{% if revision %}<p class="notice">{{ revision.revision_notes|linebreaksbr }}</p>{% endif %}
+
+{% if form %}
+<form class="editor-layout" method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <input type="hidden" name="building" value="{{ building.pk }}">
+  <input type="hidden" name="mode" value="photo">
+  <section class="panel editor-panel" data-graffiti-photo>
+    {{ form.photo.as_field_group }}
+    {% if revision %}
+    <img class="building-cover" data-current-photo src="{% url 'project_image' revision.pk 'result' %}" alt="Текущее фото граффити">
+    {% endif %}
+    <img class="building-cover" data-photo-preview alt="Предпросмотр выбранного фото граффити" hidden>
+    <p class="editor-help" data-photo-preview-error role="status" hidden>Не удалось открыть фото для предпросмотра. Выберите исправный JPEG или PNG.</p>
+  </section>
+  <section class="panel editor-panel">
+    <h2>Публикация</h2>
+    {{ form.non_field_errors }}
+    {{ form.title.as_field_group }}
+    {{ form.description.as_field_group }}
+    <button class="button lime" type="submit">{% if revision %}Отправить повторно{% else %}Отправить на модерацию{% endif %}</button>
+  </section>
+</form>
+{% else %}
+<section class="panel editor-panel placement-building-picker">
+  <h2>Выберите здание</h2>
+  {% if existing_photo %}
+  <p>Найдите на карте здание, где уже есть граффити, чтобы привязать к нему фото.</p>
+  {% else %}
+  <p>Найдите на карте здание, чтобы примерить новый мурал к его фасаду.</p>
+  {% endif %}
+  <a class="button lime" href="{% url 'map' %}{% if existing_photo %}?mode=photo{% endif %}">Выбрать здание на карте</a>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if form %}<script defer src="{% static 'js/graffiti_photo_preview.js' %}"></script>{% endif %}
+{% endblock %}

@@ -21,7 +21,7 @@ from apps.buildings.addresses import CITY_FILTER, in_city, street_walk_url
 from apps.buildings.models import Building, FacadePhoto
 from apps.murals.models import MuralDesign
 
-from .forms import CommentForm, PlacementDeletionForm, PlacementForm, RatingForm
+from .forms import CommentForm, GraffitiPhotoForm, PlacementDeletionForm, PlacementForm, RatingForm
 from .models import Comment, CommentLike, ModerationDecision, Placement, Rating, can_moderate, published_placements, with_ratings
 from .services.perspective import encode_image, render_placement
 
@@ -49,9 +49,17 @@ def home(request):
     ))
     for project in projects:
         project.comment_draft = take_comment_draft(request, project)
+    featured_project = min(
+        (
+            project for project in projects
+            if project.title == "Мурал Котъ Саратовскiй" and project.author.username == "Muralium Studio"
+        ),
+        key=lambda project: project.pk,
+        default=None,
+    )
     return render(request, "home.html", {
         "projects": projects,
-        "featured_project": projects[0] if projects else None,
+        "featured_project": featured_project,
         "in_feed": True,
     })
 
@@ -304,7 +312,7 @@ def project_image(request, pk, kind):
     project = visible_project(request, pk)
     if kind == "result":
         return image_response(project.result_image)
-    if kind == "before":
+    if kind == "before" and not project.is_existing_graffiti:
         return image_response(project.facade_photo.image)
     raise Http404
 
@@ -345,7 +353,9 @@ def preview(request, revision_pk=None):
     if not can_submit_work(request.user):
         return JsonResponse({"error": "Вам запрещено отправлять работы."}, status=403)
     try:
-        revision = get_object_or_404(revisable_placements(request.user), pk=revision_pk) if revision_pk else None
+        revision = get_object_or_404(
+            revisable_placements(request.user), pk=revision_pk, facade_photo__isnull=False,
+        ) if revision_pk else None
         building = revision.building if revision else selected_building(request.POST.get("building"))
     except Http404:
         return JsonResponse({"error": "Заявка на доработке или здание не найдены."}, status=404)
@@ -368,7 +378,7 @@ def revisable_placements(author):
     return Placement.objects.filter(author=author, status=Placement.Status.REVISION)
 
 
-def save_project(building, author, data, result, *, revision=None):
+def save_project(building, author, data, result, *, revision=None, existing_photo=False):
     stored_files = []
 
     def store(field, content):
@@ -388,32 +398,36 @@ def save_project(building, author, data, result, *, revision=None):
                 original = (revision.facade_photo_id, revision.mural_design_id, revision.result_image.name, revision.revision_notes)
                 if current != original:
                     raise ValidationError("Заявка изменилась. Откройте редактор заново.")
-            facade = data["facade"]
-            if data["facade_file"]:
-                facade = FacadePhoto(building=building, uploaded_by=author)
-                store(facade.image, encode_image(data["facade_image"], png=True))
-                facade.save()
-            design = data["design"]
-            if data["mural_file"]:
-                design = MuralDesign(title=data["title"], author=author)
-                store(design.image, encode_image(data["mural_image"], png=True))
-                design.save()
-                design.buildings.add(building)
+            if existing_photo:
+                project.corners = []
+            else:
+                facade = data["facade"]
+                if data["facade_file"]:
+                    facade = FacadePhoto(building=building, uploaded_by=author)
+                    store(facade.image, encode_image(data["facade_image"], png=True))
+                    facade.save()
+                design = data["design"]
+                if data["mural_file"]:
+                    design = MuralDesign(title=data["title"], author=author)
+                    store(design.image, encode_image(data["mural_image"], png=True))
+                    design.save()
+                    design.buildings.add(building)
+                project.facade_photo = facade
+                project.mural_design = design
+                project.corners = data["corners"]
 
             previous_image = project.result_image.name
             storage = project.result_image.storage
-            project.facade_photo = facade
-            project.mural_design = design
             project.title = data["title"]
             project.description = data["description"]
-            project.corners = data["corners"]
             project.status = Placement.Status.PENDING
             project.published_at = None
             project.revision_notes = ""
             project.rejection_reason = ""
-            store(project.result_image, encode_image(result, png=True))
+            if result is not None:
+                store(project.result_image, encode_image(result, png=not existing_photo))
             project.save()
-            if previous_image:
+            if previous_image and result is not None:
                 transaction.on_commit(lambda: storage.delete(previous_image), robust=True)
     except Exception:
         for storage, name in stored_files:
@@ -428,11 +442,15 @@ def create(request):
     if not can_submit_work(request.user):
         raise PermissionDenied("Вам запрещено отправлять работы.")
     submitting = request.method == "POST"
-    building_id = (request.POST if submitting else request.GET).get("building")
+    params = request.POST if submitting else request.GET
+    existing_photo = params.get("mode") == "photo"
+    building_id = params.get("building")
     if not building_id and not submitting:
-        return redirect("map")
+        return render(request, "create_placement.html", {"existing_photo": existing_photo})
 
     building = selected_building(building_id)
+    if existing_photo:
+        return graffiti_photo_editor(request, building)
     form = PlacementForm(
         request.POST if submitting else None,
         request.FILES if submitting else None,
@@ -462,6 +480,9 @@ def revise(request, pk):
     if not can_submit_work(request.user):
         raise PermissionDenied("Вам запрещено отправлять работы.")
     project = get_object_or_404(revisable_placements(request.user).select_related("building"), pk=pk)
+    if project.is_existing_graffiti:
+        return graffiti_photo_editor(request, project.building, revision=project)
+
     submitting = request.method == "POST"
     form = PlacementForm(
         request.POST if submitting else None,
@@ -488,4 +509,30 @@ def revise(request, pk):
         "building": project.building, "form": form, "revision": project,
         "preview_url": reverse("revision_preview", args=[project.pk]),
         "street_walk_url": street_walk_url(project.building.latitude, project.building.longitude),
+    })
+
+
+def graffiti_photo_editor(request, building, *, revision=None):
+    submitting = request.method == "POST"
+    form = GraffitiPhotoForm(
+        request.POST if submitting else None,
+        request.FILES if submitting else None,
+        revision=revision,
+        initial={"title": revision.title, "description": revision.description} if revision else None,
+    )
+    if form.is_valid():
+        data = form.cleaned_data
+        try:
+            project = save_project(
+                building, request.user, data, data["photo"], revision=revision, existing_photo=True,
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            if revision:
+                messages.success(request, "Исправленная заявка отправлена на модерацию.")
+            return redirect("placement", pk=project.pk)
+
+    return render(request, "create_placement.html", {
+        "building": building, "form": form, "revision": revision, "existing_photo": True,
     })

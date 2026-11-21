@@ -57,13 +57,16 @@ class PlacementAdmin(admin.ModelAdmin):
 
     @admin.display(description="Изображения")
     def materials(self, project):
+        result_url = reverse("project_image", args=[project.pk, "result"])
+        if project.is_existing_graffiti:
+            return format_html('<a href="{}" target="_blank" rel="noopener">Фото граффити</a>', result_url)
         return format_html(
             '<a href="{}" target="_blank" rel="noopener">Фасад</a> · '
             '<a href="{}" target="_blank" rel="noopener">Эскиз</a> · '
             '<a href="{}" target="_blank" rel="noopener">Результат</a>',
             reverse("asset", args=["facade", project.facade_photo_id]),
             reverse("asset", args=["design", project.mural_design_id]),
-            reverse("project_image", args=[project.pk, "result"]),
+            result_url,
         )
 
     def has_module_permission(self, request):

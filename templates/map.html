@@ -9,6 +9,7 @@
       <label class="visually-hidden" for="{{ address_form.address.id_for_label }}">{{ address_form.address.label }}</label>
       <span class="pin address-form-pin" aria-hidden="true"></span>
       {{ address_form.address }}
+      {% if selecting_graffiti_building %}<input type="hidden" name="mode" value="photo">{% endif %}
       <button class="button lime compact" type="submit">Найти</button>
     </form>
     {% if address_form.address.errors or matches is not None %}
@@ -28,7 +29,8 @@
             <form method="post" action="{% url 'building_add' %}">
               {% csrf_token %}
               <input type="hidden" name="address_ticket" value="{{ address.ticket }}">
-              <button class="button lime compact">Создать проект</button>
+              {% if selecting_graffiti_building %}<input type="hidden" name="mode" value="photo">{% endif %}
+              <button class="button lime compact">{% if selecting_graffiti_building %}Выбрать здание{% else %}Создать проект{% endif %}</button>
             </form>
             {% else %}
             <a class="button outline compact" href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Войти для создания</a>
@@ -51,7 +53,8 @@
       <form method="post" action="{% url 'building_add' %}" id="map-address-action" hidden>
         {% csrf_token %}
         <input type="hidden" name="address_ticket">
-        <button class="button lime compact">Создать проект</button>
+        {% if selecting_graffiti_building %}<input type="hidden" name="mode" value="photo">{% endif %}
+        <button class="button lime compact">{% if selecting_graffiti_building %}Выбрать здание{% else %}Создать проект{% endif %}</button>
       </form>
       {% endif %}
       <a class="button outline compact" id="map-address-login" href="{% url 'login' %}" hidden>Войти для создания</a>
@@ -60,7 +63,11 @@
     <details class="address-catalog">
       <summary>Здания в каталоге</summary>
       {% for building in buildings %}
-      <a href="{% url 'building' building.pk %}" class="building-row" data-map-building="{{ building.pk }}"><span class="pin" aria-hidden="true"></span><span>{{ building.address }}</span></a>
+      {% if selecting_graffiti_building %}
+      <a href="{% url 'create' %}?mode=photo&amp;building={{ building.pk }}" class="building-row">
+      {% else %}
+      <a href="{% url 'building' building.pk %}" class="building-row" data-map-building="{{ building.pk }}">
+      {% endif %}<span class="pin" aria-hidden="true"></span><span>{{ building.address }}</span></a>
       {% empty %}
       <p>В каталоге пока нет зданий.</p>
       {% endfor %}
@@ -70,6 +77,7 @@
     <div id="city-map" class="city-map" aria-label="Интерактивная карта Саратовской области"
          data-buildings="{% url 'buildings_api' %}" data-projects="{% url 'map_api' %}"
          data-address="{% url 'map_address' %}"
+         {% if selecting_graffiti_building %}data-graffiti-create="{% url 'create' %}"{% endif %}
          data-selected="{{ selected_building }}" data-tile-url="{{ map_tile_url }}"></div>
     <div class="map-footer">
       <div class="map-legend" aria-label="Обозначения карты">
@@ -85,5 +93,5 @@
 {% endblock %}
 {% block scripts %}
 <script defer src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
-<script defer src="{% static 'js/map.js' %}?v=3"></script>
+<script defer src="{% static 'js/map.js' %}?v=4"></script>
 {% endblock %}

@@ -10,7 +10,7 @@
   {% with project=featured_project %}
   {% if project %}
   <a class="hero-image" href="{% url 'placement' project.pk %}">
-    <img src="{% url 'project_image' project.pk 'result' %}" alt="Виртуальный мурал «{{ project.title }}»">
+    <img src="{% url 'project_image' project.pk 'result' %}" alt="{% if project.is_existing_graffiti %}Фото граффити{% else %}Виртуальный мурал{% endif %} «{{ project.title }}»">
     <span class="image-caption">{{ project.title }}{% with panorama=project.facade_photo.panorama %}{% if panorama.credit %} · {{ panorama.credit }}{% if panorama.license_name %} · {{ panorama.license_name }}{% endif %}{% endif %}{% endwith %}</span>
   </a>
   {% else %}

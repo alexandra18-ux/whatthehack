@@ -180,6 +180,7 @@
                     action.hidden = false;
                 } else {
                     const login = new URL(loginLink.href);
+                    if (element.dataset.graffitiCreate) params.set("mode", "photo");
                     login.searchParams.set("next", `${location.pathname}?${params}`);
                     loginLink.href = login.href;
                     loginLink.hidden = false;
@@ -219,6 +220,10 @@
             const item = document.createElement("li");
             const link = document.createElement("a");
             link.href = entry.url;
+            if (label === "address" && element.dataset.graffitiCreate) {
+                const params = new URLSearchParams({ mode: "photo", building: entry.id });
+                link.href = `${element.dataset.graffitiCreate}?${params}`;
+            }
             link.textContent = entry[label];
             item.append(link);
             if (entry.street_walk_url) appendStreetWalk(item, entry.street_walk_url);
