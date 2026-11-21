@@ -431,6 +431,8 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .comment-form { display: grid; gap: 7px; justify-items: start; margin-top: 14px; }
 .comment-form label { font-size: .9rem; font-weight: 650; }
 .comment-form textarea { resize: vertical; }
+.comment-form textarea:focus-visible { outline-width: 1px; outline-offset: 2px; }
+.comment-form > .button { margin-block-start: 6px; }
 .interaction-error { color: var(--error); font-size: .875rem; margin-top: 8px; }
 .rating-widget[aria-busy="true"], .discussion[aria-busy="true"] { opacity: .85; }
 .feed-sidebar textarea { overscroll-behavior: contain; }
