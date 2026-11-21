@@ -105,9 +105,29 @@ h1, h2, h3 { line-height: 1.06; letter-spacing: -.04em; overflow-wrap: anywhere;
 .header-avatar.avatar-placeholder { font-size: 1rem; }
 .account-logout { margin-top: 12px; }
 #projects, #comments, #rating { scroll-margin-top: 90px; }
-.theme-toggle.button { width: 38px; padding: 0; }
-.theme-toggle span { width: 15px; height: 15px; border-radius: 50%; box-shadow: -4px 3px 0 0 currentColor; transform: translate(2px, -2px); }
-.theme-toggle[aria-pressed="true"] span { width: 12px; height: 12px; border: 2px solid currentColor; box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px currentColor; transform: none; }
+.theme-picker { position: relative; }
+.theme-picker[open] { z-index: 2; }
+.theme-toggle.button { display: flex; width: 38px; height: 38px; padding: 0; cursor: pointer; list-style: none; }
+.theme-toggle::-webkit-details-marker { display: none; }
+.theme-icon { display: block; width: 18px; height: 18px; background: currentColor; mask: var(--theme-icon) center / contain no-repeat; }
+.theme-toggle .theme-icon { width: 26px; height: 26px; flex: none; }
+.theme-icon-light { --theme-icon: url("../icons/sun.svg"); }
+.theme-icon-dark { --theme-icon: url("../icons/moon.svg"); }
+.theme-icon-system { --theme-icon: url("../icons/eclipse.svg"); }
+.theme-options {
+  position: absolute; inset-block-start: calc(100% + 8px); inset-inline-end: 0;
+  min-inline-size: max-content; margin: 0; padding: 4px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 15%);
+}
+.theme-option {
+  display: grid; grid-template-columns: 18px 1fr 16px; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 5px; cursor: pointer; font-size: .875rem;
+}
+.theme-option:hover, .theme-option:has(:checked) { background: var(--hover); }
+.theme-option:has(:focus-visible), .theme-toggle:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.theme-check { visibility: hidden; color: var(--accent-text); font-weight: 800; }
+.theme-option :checked ~ .theme-check { visibility: visible; }
 .brand { display: inline-flex; align-items: center; gap: 8px; font-size: 24px; font-weight: 800; letter-spacing: -.065em; text-decoration: none; line-height: 1; white-space: nowrap; }
 .brand-mark { flex: none; height: auto; }
 .site-footer { border-top: 1px solid var(--line); color: var(--muted); }
@@ -304,8 +324,7 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .graffiti-feed .feed-post { block-size: auto; grid-template-rows: auto; border: 1px solid var(--line); border-radius: var(--radius); scroll-margin-top: 90px; }
 .search-results .feed-post { block-size: auto; border: 1px solid var(--line); border-radius: var(--radius); }
 .graffiti-feed .feed-main { grid-template-rows: auto auto 1fr; }
-.graffiti-feed .feed-cover { aspect-ratio: 16 / 10; max-block-size: 65vh; touch-action: auto; }
-.graffiti-feed .feed-cover img { object-fit: contain; }
+.graffiti-feed .feed-cover { aspect-ratio: 16 / 10; max-block-size: 65vh; border-bottom-left-radius: var(--radius); touch-action: auto; }
 .graffiti-feed .feed-sidebar { overflow: visible; }
 .feed-byline, .feed-caption { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 16px; }
 .feed-byline time { color: var(--muted); font-size: .875rem; text-align: right; }
@@ -314,7 +333,7 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .feed-cover { position: relative; min-height: 0; overflow: clip; touch-action: pan-x pinch-zoom; user-select: none; }
 .feed-cover a { display: block; height: 100%; }
 .feed-cover a:focus-visible { outline-offset: -5px; }
-.feed-cover img { width: 100%; height: 100%; object-fit: cover; }
+.feed-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .feed-sidebar { min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; background: var(--feed-sidebar); border-left: 1px solid var(--line); }
 .discussion .feed-rating { margin-block-start: 24px; }
 .feed-rating .rating-widget { margin: 0; }
@@ -541,7 +560,8 @@ legend { font-size: 1.1rem; padding: 0; font-weight: 730; margin-bottom: 6px; }
   .header-inner .brand { gap: 5px; font-size: clamp(17px, 4.5vw, 24px); }
   .header-inner .brand-mark { width: 34px; }
   .header-actions { gap: 4px; }
-  .header-actions .button.compact { padding-inline: 6px; font-size: .8rem; }
+  .theme-picker:has(~ a.button) .theme-options { inset-inline: 0 auto; }
+  .header-actions .button.compact:not(.theme-toggle) { padding-inline: 6px; font-size: .8rem; }
   .hero { grid-template-columns: minmax(0, 1fr); min-height: auto; }
   .hero-copy { padding: 29px 24px 32px; }
   .hero-image, .hero-placeholder { min-height: 220px; aspect-ratio: 1.7; }

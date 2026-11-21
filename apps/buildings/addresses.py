@@ -138,7 +138,7 @@ def geocode(url, params):
         raise AddressSearchUnavailable
 
     request = Request(f"{url}?{query}", headers={
-        "User-Agent": "Muralium/1.0 (Regional address search)",
+        "User-Agent": "Murrralium/1.0 (Regional address search)",
         "Accept": "application/json",
     })
     try:

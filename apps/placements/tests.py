@@ -115,7 +115,7 @@ class PlacementWorkflowTests(TestCase):
         home = reverse("home")
         self.assertIsNone(visitor.get(home).context["featured_project"])
 
-        self.owner.username = "Muralium Studio"
+        self.owner.username = "Murrralium Studio"
         self.owner.save(update_fields=["username"])
         featured = self.create_work(title, timezone.now() - timedelta(days=1))
         self.create_work("Новая публикация", timezone.now())
