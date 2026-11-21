@@ -14,10 +14,27 @@
     const firstAddress = addressButtons[0];
     const map = leaflet.map(element, {
         scrollWheelZoom: true, touchZoom: true,
-        minZoom: 4, maxZoom: 19, zoomSnap: 0.25,
+        maxZoom: 19, zoomSnap: 0.25,
         maxBounds: bounds, maxBoundsViscosity: 1,
         zoomControl: false,
     });
+
+    const regionSize = map.project(bounds.getSouthEast(), 0).subtract(map.project(bounds.getNorthWest(), 0));
+
+    function updateMinimumZoom() {
+        const size = map.getSize();
+        if (!size.x || !size.y) return;
+
+        const scale = Math.min(size.x / regionSize.x, size.y / regionSize.y);
+        const snap = leaflet.Browser.any3d ? map.options.zoomSnap : 1;
+        const minimumZoom = Math.min(map.getMaxZoom(), Math.floor(map.getScaleZoom(scale, 0) / snap) * snap);
+        const atMinimumZoom = map.getZoom() === map.getMinZoom();
+        map.setMinZoom(minimumZoom);
+        if (atMinimumZoom && map.getZoom() !== minimumZoom) map.setZoom(minimumZoom);
+    }
+
+    updateMinimumZoom();
+    map.on("resize", updateMinimumZoom);
     if (firstAddress) {
         map.setView(addressPoint(firstAddress), 17);
     } else {
@@ -285,10 +302,36 @@
 
         for (const group of groups.values()) {
             const hasProjects = group.projects.length > 0;
+            const previewProject = group.projects.find((project) => !project.is_own) ?? group.projects[0];
             const popup = document.createElement("div");
             popup.className = "map-popup";
-            appendLinks(popup, "Здания", group.buildings, "address");
-            appendLinks(popup, "Опубликованные проекты", group.projects, "title");
+            const image = previewProject?.image ? document.createElement("img") : null;
+            if (image) {
+                image.className = "map-popup-image";
+                image.alt = "";
+                image.decoding = "async";
+                popup.append(image);
+            }
+            if (previewProject) {
+                const projectTitle = document.createElement("strong");
+                projectTitle.className = "map-popup-title";
+                projectTitle.textContent = previewProject.title;
+
+                const actions = document.createElement("div");
+                actions.className = "map-popup-actions";
+                const projectLink = document.createElement("a");
+                projectLink.className = "button compact lime";
+                projectLink.href = previewProject.url;
+                projectLink.textContent = "Открыть проект";
+                actions.append(projectLink);
+
+                const [latitude, longitude] = group.point;
+                const mapQuery = new URLSearchParams({ ll: `${longitude},${latitude}`, z: "17" });
+                appendStreetWalk(actions, group.buildings[0]?.street_walk_url ?? `https://yandex.ru/maps/?${mapQuery}`);
+                popup.append(projectTitle, actions);
+            }
+            if (!hasProjects) appendLinks(popup, "Здания", group.buildings, "address");
+            appendLinks(popup, "Другие проекты", group.projects.filter((project) => project !== previewProject), "title");
             const title = hasProjects ? group.projects[0].address : group.buildings[0].address;
             const marker = leaflet.marker(group.point, {
                 icon: leaflet.divIcon({
@@ -298,8 +341,11 @@
                 title,
             }).addTo(map).bindPopup(popup);
             marker.getElement().setAttribute("aria-label", title);
-            const previewProject = group.projects.find((project) => !project.is_own);
-            if (previewProject) bindProjectPreview(marker, previewProject);
+            if (image) {
+                bindProjectPreview(marker, previewProject);
+                marker.on("popupopen", () => marker.closeTooltip());
+                marker.once("popupopen", () => { image.src = previewProject.image; });
+            }
             for (const building of group.buildings) {
                 buildingMarkers.set(String(building.id), marker);
             }
