@@ -280,6 +280,7 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .address-form {
   display: flex;
   gap: 6px;
+  margin: 3px;
   padding: 4px;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -295,7 +296,7 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
   color: var(--ink);
 }
 .address-form input:focus-visible { outline: none; }
-.address-form:has(input:focus-visible) { border-color: var(--muted); }
+.address-form:has(input:focus-visible) { outline: 1px solid var(--focus); outline-offset: 2px; }
 .address-form input::placeholder { color: var(--muted); opacity: 1; }
 .address-feedback { display: grid; gap: 8px; padding: 12px; }
 .address-catalog { align-self: start; max-width: 100%; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
@@ -435,7 +436,10 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .comment-form { display: grid; gap: 7px; justify-items: start; margin-top: 14px; }
 .comment-form label { font-size: .9rem; font-weight: 650; }
 .comment-form textarea { resize: vertical; }
-.header-search input:focus-visible, .comment-form textarea:focus-visible { outline-width: 1px; outline-offset: 2px; }
+.header-search input:focus-visible, .comment-form textarea:focus-visible {
+  outline-width: 1px;
+  outline-offset: 2px;
+}
 .comment-form > .button { margin-block-start: 6px; }
 .interaction-error { color: var(--error); font-size: .875rem; margin-top: 8px; }
 .rating-widget[aria-busy="true"], .discussion[aria-busy="true"] { opacity: .85; }
