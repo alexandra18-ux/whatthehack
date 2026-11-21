@@ -7,7 +7,9 @@ from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods
 
-from .addresses import AddressSearchUnavailable, CITY_FILTER, address_at, get_address, in_city, street_walk_url
+from .addresses import (
+    REGION_FILTER, AddressSearchUnavailable, address_at, get_address, in_map_region, street_walk_url,
+)
 from .models import Building
 
 
@@ -22,16 +24,13 @@ def building_data(building):
     }
 
 
-def city_buildings():
-    return [
-        item for item in Building.objects.filter(**CITY_FILTER)
-        if in_city(item.latitude, item.longitude)
-    ]
+def regional_buildings():
+    return Building.objects.filter(**REGION_FILTER)
 
 
 def buildings_api(request):
     return JsonResponse({"buildings": [
-        building_data(item) for item in city_buildings()
+        building_data(item) for item in regional_buildings()
     ]})
 
 
@@ -43,8 +42,8 @@ def map_address(request):
         longitude = Decimal(request.GET.get("lon", ""))
     except InvalidOperation:
         return JsonResponse({"error": "Укажите точку на карте."}, status=400)
-    if not (latitude.is_finite() and longitude.is_finite() and in_city(latitude, longitude)):
-        return JsonResponse({"error": "Выберите точку в границах Саратова."}, status=400)
+    if not in_map_region(latitude, longitude):
+        return JsonResponse({"error": "Выберите здание в пределах карты."}, status=400)
     try:
         address = address_at(latitude, longitude)
     except AddressSearchUnavailable:
