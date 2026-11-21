@@ -21,7 +21,7 @@
         <h2 id="wall-title">Моя стена</h2>
         {% if not user.restrictions.publications_block_active %}<a class="button lime" href="{% url 'create' %}">Создать проект</a>{% endif %}
       </header>
-      {% include "project_grid.html" with empty_copy="У вас пока нет проектов." account_cards=True allow_delete=True %}
+      {% include "project_grid.html" with empty_copy="У вас пока нет проектов." account_cards=True allow_delete=True show_project_ratings=True %}
       {% include "pagination.html" %}
     </section>
     {% elif tab == 'settings' %}

@@ -7,7 +7,7 @@
 {% endif %}
 <section class="account-public-wall">
   <header class="account-section-heading"><h2>{% if may_delete_other_works %}Все работы автора{% else %}Опубликованные работы{% endif %}</h2></header>
-  {% include "project_grid.html" with empty_copy="Работ пока нет." account_cards=True %}
+  {% include "project_grid.html" with empty_copy="Работ пока нет." account_cards=True show_project_ratings=True show_rating_stars=True %}
   {% include "pagination.html" %}
 </section>
 {% endblock %}

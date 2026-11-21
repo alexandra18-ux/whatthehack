@@ -1,6 +1,6 @@
 <div class="graffiti-feed" data-feed>
 {% for project in projects %}
-  {% include "feed_card.html" %}
+  {% include "feed_card.html" with home_feed=True %}
 {% empty %}
 <p class="empty">Здесь пока нет граффити. Выберите здание, чтобы создать первый проект.</p>
 {% endfor %}
