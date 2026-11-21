@@ -54,7 +54,7 @@ def home(request):
     featured_project = min(
         (
             project for project in projects
-            if project.title == "Мурал Котъ Саратовскiй" and project.author.username == "Muralium Studio"
+            if project.title == "Мурал Котъ Саратовскiй" and project.author.username == "Murrralium Studio"
         ),
         key=lambda project: project.pk,
         default=None,

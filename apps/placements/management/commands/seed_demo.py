@@ -89,7 +89,7 @@ class Command(BaseCommand):
     help = "Создаёт вымышленные фасады, эскизы и опубликованные демопроекты."
 
     def handle(self, *args, **options):
-        author, created = get_user_model().objects.get_or_create(username="Muralium Studio")
+        author, created = get_user_model().objects.get_or_create(username="Murrralium Studio")
         if created:
             author.set_unusable_password()
             author.save(update_fields=["password"])
