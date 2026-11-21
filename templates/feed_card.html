@@ -1,9 +1,9 @@
-<article class="feed-post" id="project-{{ project.pk }}" aria-labelledby="result-title-{{ project.pk }}">
+<article class="feed-post" id="project-{{ project.pk }}" aria-labelledby="{{ title_prefix|default:"feed-title" }}-{{ project.pk }}">
   <div class="feed-main">
     <header class="feed-byline">
       <a class="feed-author" href="{% url 'profile' project.author_id %}">
         {% if project.author.profile.avatar %}
-        <img src="{% url 'avatar' project.author_id %}" alt="">
+        <img loading="lazy" src="{% url 'avatar' project.author_id %}" alt="">
         {% else %}
         <span class="avatar-placeholder" aria-hidden="true">{{ project.author.profile.nickname|default:project.author.username|first|upper }}</span>
         {% endif %}
@@ -11,23 +11,18 @@
       </a>
       <time datetime="{{ project.published_at|date:'c' }}">{{ project.published_at|date:"j E Y" }}</time>
     </header>
-    <div class="feed-cover">
-      <a href="{% url 'placement' project.pk %}" draggable="false"><img src="{% url 'project_image' project.pk 'result' %}" alt="{{ project.title }}" draggable="false"></a>
-    </div>
-    <footer class="feed-caption">
+    <div class="feed-caption">
       <div class="feed-title-group">
         <p class="card-location">{{ project.building.address }}</p>
-        <h3 id="result-title-{{ project.pk }}"><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
-        {% include "panorama_credit.html" with panorama=project.facade_photo.panorama %}
+        <h3 id="{{ title_prefix|default:"feed-title" }}-{{ project.pk }}"><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
       </div>
       <a class="button outline compact feed-details" href="{% url 'placement' project.pk %}">О работе</a>
-    </footer>
+    </div>
+    <div class="feed-cover">
+      <a href="{% url 'placement' project.pk %}"><img loading="lazy" src="{% url 'project_image' project.pk 'result' %}" alt="{{ project.title }}"></a>
+    </div>
   </div>
   <div class="feed-sidebar">
-    <div class="feed-rating">
-      <h3>Рейтинг работы</h3>
-      {% include "rating.html" %}
-    </div>
-    {% include "discussion.html" %}
+    {% include "discussion.html" with comments=project.feed_comments comment_draft=project.comment_draft %}
   </div>
 </article>

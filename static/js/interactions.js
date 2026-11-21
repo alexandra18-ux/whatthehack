@@ -85,7 +85,7 @@
                 selected?.focus({ preventScroll: true });
             } else if (isComment) {
                 const url = new URL(location.href);
-                if (url.searchParams.has("page")) {
+                if (!feed && url.searchParams.has("page")) {
                     url.searchParams.delete("page");
                     history.replaceState(history.state, "", url);
                 }
