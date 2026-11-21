@@ -44,12 +44,16 @@
     <fieldset>
       <legend>Фасад</legend>
       {% include "street_walk_link.html" %}
-      {{ form.facade.as_field_group }}
+      <div{% if not form.facade.field.queryset.exists and not form.facade.errors %} hidden{% endif %}>
+        {{ form.facade.as_field_group }}
+      </div>
       {{ form.facade_file.as_field_group }}
     </fieldset>
     <fieldset>
       <legend>Эскиз</legend>
-      {{ form.design.as_field_group }}
+      <div{% if not form.design.field.queryset.exists and not form.design.errors %} hidden{% endif %}>
+        {{ form.design.as_field_group }}
+      </div>
       {{ form.mural_file.as_field_group }}
       <img id="design-preview" class="design-preview" alt="Выбранный эскиз" hidden>
     </fieldset>
