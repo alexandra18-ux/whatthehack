@@ -2,7 +2,8 @@
 {% block title %}Редактор мурала · Murrralium{% endblock %}
 {% block content %}
 <a class="back-link" href="{% url 'building' building.pk %}">{{ building.address }}</a>
-<header class="page-heading"><h1>{% if revision %}Доработка заявки{% else %}Редактор мурала{% endif %}</h1><p>Выберите фасад и эскиз, затем отметьте границы стены.</p></header>
+<header class="page-heading"><h1>{% if revision %}Доработка заявки{% else %}Создать проект{% endif %}</h1><p>Выберите фасад и эскиз, затем отметьте границы стены.</p></header>
+{% if not revision %}{% include "placement_modes.html" %}{% endif %}
 {% if revision %}<p class="notice">{{ revision.revision_notes|linebreaksbr }}</p>{% endif %}
 {% url 'preview' as default_preview %}
 <form class="editor-layout" id="placement-editor" method="post" enctype="multipart/form-data"

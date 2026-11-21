@@ -32,6 +32,7 @@ def maps(request):
         "selected_building": request.GET.get("building", ""),
         "address_form": form,
         "matches": matches,
+        "selecting_graffiti_building": request.GET.get("mode") == "photo",
     })
     # The tile service needs the app origin, while the page path can stay private.
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"

@@ -25,12 +25,33 @@ class CommentForm(forms.Form):
     text = forms.CharField(max_length=800, label="Комментарий", validators=[validate_public_text])
 
 
-class PlacementForm(forms.Form):
+class ProjectDetailsForm(forms.Form):
     title = forms.CharField(max_length=200, label="Название", validators=[validate_public_text])
     description = forms.CharField(
         max_length=2000, label="Описание", widget=forms.Textarea(attrs={"rows": 3}),
         validators=[validate_public_text],
     )
+
+
+class GraffitiPhotoForm(ProjectDetailsForm):
+    photo = forms.FileField(
+        label="Фото граффити", help_text="JPEG или PNG, до 10 МБ.",
+        widget=forms.ClearableFileInput(attrs={"accept": "image/jpeg,image/png"}),
+    )
+    field_order = ["photo", "title", "description"]
+
+    def __init__(self, *args, revision=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if revision:
+            self.fields["photo"].required = False
+            self.fields["photo"].help_text = "Загрузите JPEG или PNG до 10 МБ или оставьте текущее фото."
+
+    def clean_photo(self):
+        photo = self.cleaned_data["photo"]
+        return read_image(photo) if photo else None
+
+
+class PlacementForm(ProjectDetailsForm):
     facade = forms.ModelChoiceField(
         queryset=FacadePhoto.objects.none(), required=False, label="Готовый фасад",
         empty_label="Выберите фотографию",

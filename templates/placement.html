@@ -33,6 +33,9 @@
 {% endif %}
 <div class="project-detail-layout">
 <div>
+{% if project.is_existing_graffiti %}
+<img class="building-cover" src="{% url 'project_image' project.pk 'result' %}" alt="Фото граффити «{{ project.title }}»">
+{% else %}
 <div class="comparison" data-comparison>
   <div class="segmented" aria-label="Сравнение фасада">
     <button type="button" data-show="before" aria-pressed="false">До</button>
@@ -42,6 +45,7 @@
   <img class="building-cover" data-image="before" src="{% url 'project_image' project.pk 'before' %}" alt="Исходный фасад" loading="lazy" hidden>
 </div>
 {% include "panorama_credit.html" with panorama=project.facade_photo.panorama %}
+{% endif %}
 {% if published %}
 <p class="project-feed-return"><a class="button outline" href="{% url 'home' %}#project-{{ project.pk }}">← Вернуться к ленте</a></p>
 {% endif %}
@@ -51,4 +55,4 @@
 {% if published %}{% include "discussion.html" %}{% endif %}
 </div>
 {% endblock %}
-{% block scripts %}<script defer src="{% static 'js/comparison.js' %}"></script>{% endblock %}
+{% block scripts %}{% if not project.is_existing_graffiti %}<script defer src="{% static 'js/comparison.js' %}"></script>{% endif %}{% endblock %}

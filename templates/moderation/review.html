@@ -12,14 +12,18 @@
 </header>
 <div class="project-detail-layout">
   <div>
+    {% url 'project_image' project.pk 'result' as result_url %}
+    {% if project.is_existing_graffiti %}
+    <a href="{{ result_url }}"><img class="building-cover" src="{{ result_url }}" alt="Фото существующего граффити"></a>
+    {% else %}
     {% url 'asset' 'facade' project.facade_photo_id as facade_url %}
     {% url 'asset' 'design' project.mural_design_id as design_url %}
-    {% url 'project_image' project.pk 'result' as result_url %}
     <div class="project-grid">
       <div><h3>Фасад</h3><a href="{{ facade_url }}"><img class="building-cover" src="{{ facade_url }}" alt="Исходное фото фасада"></a></div>
       <div><h3>Эскиз</h3><a href="{{ design_url }}"><img class="building-cover" src="{{ design_url }}" alt="Исходный эскиз"></a></div>
       <div><h3>Результат</h3><a href="{{ result_url }}"><img class="building-cover" src="{{ result_url }}" alt="Фасад с муралом"></a></div>
     </div>
+    {% endif %}
     <div class="project-description">{{ project.description|linebreaks }}</div>
   </div>
   <section class="moderation-card editor-panel">

@@ -12,8 +12,8 @@ class Placement(models.Model):
 
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     building = models.ForeignKey("buildings.Building", on_delete=models.PROTECT)
-    facade_photo = models.ForeignKey("buildings.FacadePhoto", on_delete=models.PROTECT)
-    mural_design = models.ForeignKey("murals.MuralDesign", on_delete=models.PROTECT)
+    facade_photo = models.ForeignKey("buildings.FacadePhoto", on_delete=models.PROTECT, null=True, blank=True)
+    mural_design = models.ForeignKey("murals.MuralDesign", on_delete=models.PROTECT, null=True, blank=True)
     title = models.CharField("Название", max_length=200)
     description = models.TextField("Описание", max_length=2000)
     corners = models.JSONField()
@@ -27,6 +27,19 @@ class Placement(models.Model):
     class Meta:
         permissions = [("moderate_placement", "Может модерировать заявки")]
         ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(facade_photo__isnull=True, mural_design__isnull=True)
+                    | models.Q(facade_photo__isnull=False, mural_design__isnull=False)
+                ),
+                name="placement_has_both_editor_assets_or_neither",
+            ),
+        ]
+
+    @property
+    def is_existing_graffiti(self):
+        return self.facade_photo_id is None
 
     def __str__(self):
         return self.title

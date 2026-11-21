@@ -424,6 +424,11 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 .segmented button { background: transparent; padding: 5px 13px; border: 0; border-radius: 5px; font-weight: 650; color: var(--ink); }
 .segmented button[aria-pressed="true"] { background: var(--surface); box-shadow: 0 1px 2px #2e441f25; }
 .comparison .segmented { margin-bottom: 12px; }
+.placement-modes { margin-bottom: 20px; justify-content: flex-start; }
+.placement-modes a { padding: 8px 13px; border-radius: 5px; font-weight: 650; text-decoration: none; }
+.placement-modes a:hover { background: var(--hover); }
+.placement-modes a[aria-current="page"] { background: var(--surface); box-shadow: 0 1px 2px #2e441f25; }
+.placement-building-picker { max-width: 620px; }
 .canvas-frame { margin-top: 11px; display: grid; align-items: center; min-height: 200px; text-align: center; background: var(--canvas); color: var(--muted); border-radius: 12px; overflow: hidden; }
 .canvas-frame canvas, .canvas-frame img { width: 100%; display: block; }
 .canvas-frame canvas { height: auto; }

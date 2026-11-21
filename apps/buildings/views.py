@@ -98,4 +98,5 @@ def add_building(request):
         osm_ref=address.ref,
         defaults={"address": address.label, "latitude": address.latitude, "longitude": address.longitude},
     )
-    return redirect(f"{reverse('create')}?building={building.pk}")
+    mode = "&mode=photo" if request.POST.get("mode") == "photo" else ""
+    return redirect(f"{reverse('create')}?building={building.pk}{mode}")
