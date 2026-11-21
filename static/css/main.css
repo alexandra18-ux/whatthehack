@@ -247,12 +247,26 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 }
 :root[data-theme="dark"] .city-map .leaflet-bar a:hover { background: var(--hover); }
 :root[data-theme="dark"] .city-map .leaflet-bar a.leaflet-disabled { color: var(--muted); background: var(--surface-muted); }
-:root[data-theme="dark"] .city-map :is(.leaflet-control-attribution a, .map-popup a) { color: var(--link); }
+:root[data-theme="dark"] .city-map :is(.leaflet-control-attribution a, .map-popup a:where(:not(.button.lime))) { color: var(--link); }
 :root[data-theme="dark"] .city-map a.leaflet-popup-close-button { color: var(--muted); }
 :root[data-theme="dark"] .map-legend i { background: #7fb2e6; }
 :root[data-theme="dark"] .map-legend .map-legend-project { background: #cb9be8; }
 :root[data-theme="dark"] .map-legend .map-legend-selected { background: #a9ce7c; }
 .map-popup { overflow-wrap: anywhere; }
+.map-popup-image {
+  display: block;
+  width: 260px;
+  max-width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: contain;
+  margin-bottom: 8px;
+  border-radius: 5px;
+  background: var(--surface-muted);
+}
+.map-popup-title { display: block; font-size: 1rem; }
+.map-popup-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-block: 8px; }
+.map-popup-actions .street-walk-link { margin-top: 0; }
+.city-map .map-popup-actions .button.lime { color: var(--on-accent); }
 .map-popup ul { margin: 4px 0 8px; padding-inline-start: 16px; }
 .map-popup ul:last-child { margin-bottom: 0; }
 .building-list {
