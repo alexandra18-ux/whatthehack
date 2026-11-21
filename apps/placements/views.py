@@ -409,6 +409,10 @@ def save_project(building, author, data, result, *, revision=None, existing_phot
             storage = project.result_image.storage
             project.title = data["title"]
             project.description = data["description"]
+            if existing_photo:
+                project.mural_state = Placement.MuralState.DONE
+            elif data.get("mural_state"):
+                project.mural_state = data["mural_state"]
             project.status = Placement.Status.PENDING
             project.published_at = None
             project.revision_notes = ""
@@ -480,6 +484,7 @@ def revise(request, pk):
         revision=project,
         initial={
             "title": project.title, "description": project.description,
+            "mural_state": project.mural_state,
             "facade": project.facade_photo_id, "design": project.mural_design_id,
             "corners": json.dumps(project.corners),
         },

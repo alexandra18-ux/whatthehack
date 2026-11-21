@@ -16,6 +16,7 @@
       <div class="feed-title-group">
         {% if not home_feed %}<p class="card-location">{{ project.building.address }}</p>{% endif %}
         <h3 id="{{ title_prefix|default:"feed-title" }}-{{ project.pk }}"><a href="{% url 'placement' project.pk %}">{{ project.title }}</a></h3>
+        {% include "mural_state.html" %}
       </div>
       <a class="button outline compact feed-details" href="{% url 'placement' project.pk %}">О работе</a>
     </div>

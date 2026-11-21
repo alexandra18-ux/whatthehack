@@ -37,16 +37,16 @@ class ModerationStatusFilter(admin.SimpleListFilter):
 @admin.register(Placement)
 class PlacementAdmin(admin.ModelAdmin):
     form = ModerationForm
-    list_display = ["title", "building", "author", "status", "created_at"]
+    list_display = ["title", "building", "author", "mural_state", "status", "created_at"]
     list_filter = [ModerationStatusFilter]
     search_fields = ["title", "building__address", "author__username"]
     list_select_related = ["building", "author"]
     fields = [
-        "title", "description", "building", "author", "materials",
+        "title", "description", "building", "author", "materials", "mural_state",
         "status", "rejection_reason", "revision_notes", "created_at", "published_at",
     ]
     readonly_fields = [
-        "title", "description", "building", "author", "materials", "created_at", "published_at",
+        "title", "description", "building", "author", "materials", "mural_state", "created_at", "published_at",
     ]
 
     def get_ordering(self, request):

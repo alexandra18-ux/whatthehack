@@ -89,6 +89,7 @@ class PlacementWorkflowTests(TestCase):
         image = reverse("project_image", args=[project.pk, "result"])
         self.assertRedirects(response, detail)
         self.assertTrue(project.is_existing_graffiti)
+        self.assertEqual(project.mural_state, Placement.MuralState.DONE)
         self.assertIsNone(project.mural_design_id)
         self.assertEqual(project.corners, [])
         self.assertEqual(project.status, Placement.Status.PENDING)
@@ -606,7 +607,7 @@ class PlacementWorkflowTests(TestCase):
                 self.assertEqual(list(response.context["cl"].result_list), expected)
 
     def test_search_matches_cyrillic_and_only_shows_published_cards(self):
-        self.client.post(reverse("create"), self.payload())
+        self.client.post(reverse("create"), {**self.payload(), "mural_state": Placement.MuralState.IN_PROGRESS})
         project = Placement.objects.get()
         visitor = Client()
         url = reverse("search")
@@ -619,6 +620,7 @@ class PlacementWorkflowTests(TestCase):
         response = visitor.get(url, {"q": "мурал фасад"})
         self.assertContains(response, f'id="result-title-{project.pk}"')
         self.assertContains(response, "Отличная работа")
+        self.assertContains(response, "В работе")
         self.assertNotContains(response, "data-feed-direction")
         self.assertNotContains(response, 'src="/static/js/feed.js"')
         self.assertContains(visitor.get(url, {"q": ".*"}), "ничего не найдено")
