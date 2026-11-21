@@ -12,6 +12,9 @@
     const bounds = leaflet.latLngBounds(JSON.parse(document.querySelector("#region-map-bounds").textContent));
     const addressPoint = (button) => [Number(button.dataset.latitude), Number(button.dataset.longitude)];
     const firstAddress = addressButtons[0];
+    const initialParams = new URLSearchParams(location.search);
+    const searchViewKey = "murrralium-map-search-view";
+    const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
     const map = leaflet.map(element, {
         scrollWheelZoom: true, touchZoom: true,
         maxZoom: 19, zoomSnap: 0.25,
@@ -35,14 +38,38 @@
 
     updateMinimumZoom();
     map.on("resize", updateMinimumZoom);
-    if (firstAddress) {
-        map.setView(addressPoint(firstAddress), 17);
+
+    function takeSearchView() {
+        try {
+            const view = JSON.parse(sessionStorage.getItem(searchViewKey));
+            sessionStorage.removeItem(searchViewKey);
+            if (initialParams.has("address") && Array.isArray(view) && view.length === 3 &&
+                view.every(Number.isFinite) && bounds.contains([view[0], view[1]])) {
+                return view;
+            }
+        } catch {
+            // The default view is also used when session storage is unavailable.
+        }
+    }
+
+    const searchView = takeSearchView();
+    if (searchView) {
+        const [latitude, longitude, zoom] = searchView;
+        map.setView([latitude, longitude], zoom, { animate: false });
     } else {
         map.fitBounds([[51.475, 45.99], [51.56, 46.155]], {
             padding: [24, 24],
             maxZoom: 12,
         });
     }
+    document.querySelector(".address-form").addEventListener("submit", () => {
+        const { lat, lng } = map.getCenter();
+        try {
+            sessionStorage.setItem(searchViewKey, JSON.stringify([lat, lng, map.getZoom()]));
+        } catch {
+            // Address search can continue without saving the map view.
+        }
+    });
     leaflet.control.zoom({ position: "topright", zoomInTitle: "Приблизить", zoomOutTitle: "Отдалить" }).addTo(map);
     map.attributionControl.setPrefix(false);
 
@@ -130,6 +157,31 @@
     }
     let selection;
     let lookup;
+    let finishFlight;
+    let requestedBuilding;
+
+    function clearFlightListener() {
+        if (finishFlight) map.off("moveend", finishFlight);
+        finishFlight = undefined;
+    }
+
+    function flyToPoint(point, zoom, onArrival) {
+        clearFlightListener();
+        const target = leaflet.latLng(point);
+        const arrived = () => map.getZoom() === zoom && map.getCenter().equals(target);
+        if (reducedMotion.matches || !leaflet.Browser.any3d || arrived()) {
+            map.setView(target, zoom, { animate: false });
+            onArrival?.();
+            return;
+        }
+
+        map.flyTo(target, zoom, { duration: 1.2 });
+        finishFlight = () => {
+            finishFlight = undefined;
+            if (map.getZoom() === zoom && map.getBounds().contains(target)) onArrival?.();
+        };
+        map.once("moveend", finishFlight);
+    }
 
     function selectPoint(point) {
         if (selection) {
@@ -149,11 +201,12 @@
     }
 
     function showAddress(button) {
+        requestedBuilding = undefined;
         lookup?.abort();
         map.closePopup();
         const point = addressPoint(button);
         selectPoint(point);
-        map.setView(point, 17);
+        flyToPoint(point, 17);
         highlightAddress(button);
     }
 
@@ -164,9 +217,12 @@
             element.scrollIntoView({ block: "nearest" });
         });
     }
-    if (firstAddress) showAddress(firstAddress);
-
     async function findAddress(point) {
+        requestedBuilding = undefined;
+        if (finishFlight) {
+            clearFlightListener();
+            map.stop();
+        }
         lookup?.abort();
         const controller = new AbortController();
         lookup = controller;
@@ -212,13 +268,14 @@
     }
 
     map.on("click", ({ latlng }) => findAddress(latlng));
-    const initialParams = new URLSearchParams(location.search);
-    if (initialParams.has("lat") && initialParams.has("lon")) {
-        const initialPoint = [Number(initialParams.get("lat")), Number(initialParams.get("lon"))];
-        if (bounds.contains(initialPoint)) {
-            map.setView(initialPoint, 17);
-            findAddress(leaflet.latLng(initialPoint));
-        }
+    const requestedPoint = initialParams.has("lat") && initialParams.has("lon") &&
+        [Number(initialParams.get("lat")), Number(initialParams.get("lon"))];
+    const initialPoint = requestedPoint && requestedPoint.every(Number.isFinite) && bounds.contains(requestedPoint);
+    if (initialPoint) {
+        map.setView(requestedPoint, 17);
+        findAddress(leaflet.latLng(requestedPoint));
+    } else if (firstAddress) {
+        requestAnimationFrame(() => showAddress(firstAddress));
     }
 
     async function load(url, key) {
@@ -277,8 +334,10 @@
         selection = undefined;
         highlightAddress(null);
         map.closePopup();
-        map.setView(marker.getLatLng(), 17);
-        marker.openPopup();
+        flyToPoint(marker.getLatLng(), 17, () => {
+            marker.openPopup();
+            marker.getElement().focus({ preventScroll: true });
+        });
     }
 
     async function showMarkers() {
@@ -351,15 +410,13 @@
             }
         }
         const selectedMarker = buildingMarkers.get(element.dataset.selected);
-        if (!firstAddress && selectedMarker) {
-            map.setView(selectedMarker.getLatLng(), 16);
-            selectedMarker.openPopup();
+        if (!firstAddress && !initialPoint && !requestedBuilding && !lookup && selectedMarker) {
+            flyToPoint(selectedMarker.getLatLng(), 16, () => selectedMarker.openPopup());
         }
     }
 
     const markersReady = showMarkers();
     const catalog = document.querySelector(".address-catalog");
-    let requestedBuilding;
     for (const link of catalog.querySelectorAll("[data-map-building]")) {
         link.addEventListener("click", async (event) => {
             if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -374,7 +431,6 @@
             }
             catalog.open = false;
             showBuilding(marker);
-            marker.getElement().focus({ preventScroll: true });
         });
     }
 })();
