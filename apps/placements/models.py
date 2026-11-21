@@ -4,6 +4,11 @@ from django.db.models import Avg, Count, OuterRef, Subquery
 
 
 class Placement(models.Model):
+    class MuralState(models.TextChoices):
+        IDEA = "idea", "Идея"
+        IN_PROGRESS = "in_progress", "В работе"
+        DONE = "done", "Сделано"
+
     class Status(models.TextChoices):
         PENDING = "pending", "На модерации"
         APPROVED = "approved", "Опубликован"
@@ -18,6 +23,7 @@ class Placement(models.Model):
     description = models.TextField("Описание", max_length=2000)
     corners = models.JSONField()
     result_image = models.ImageField(upload_to="results/")
+    mural_state = models.CharField("Состояние мурала", max_length=11, choices=MuralState.choices, default=MuralState.IDEA)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
     rejection_reason = models.TextField("Причина отклонения", blank=True)
     revision_notes = models.TextField("Что нужно исправить", blank=True)

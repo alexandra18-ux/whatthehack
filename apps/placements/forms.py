@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from apps.buildings.models import FacadePhoto
 from apps.murals.models import MuralDesign
 
+from .models import Placement
 from .services.perspective import read_image, validate_corners
 from .text_moderation import validate_public_text
 
@@ -52,6 +53,10 @@ class GraffitiPhotoForm(ProjectDetailsForm):
 
 
 class PlacementForm(ProjectDetailsForm):
+    mural_state = forms.ChoiceField(
+        label="Состояние мурала", choices=Placement.MuralState.choices,
+        initial=Placement.MuralState.IDEA, required=False,
+    )
     facade = forms.ModelChoiceField(
         queryset=FacadePhoto.objects.none(), required=False, label="Готовый фасад",
         empty_label="Выберите фотографию",
@@ -78,6 +83,7 @@ class PlacementForm(ProjectDetailsForm):
         if preview:
             del self.fields["title"]
             del self.fields["description"]
+            del self.fields["mural_state"]
         else:
             self.fields["corners"].widget.attrs["id"] = "placement-corners"
 

@@ -333,3 +333,57 @@ try {
 }
 choosePhoto(true);
 chooseDesign();
+
+for (const select of form.querySelectorAll(".editor-panel select")) {
+    const picker = document.createElement("details");
+    picker.className = "editor-picker";
+    const trigger = document.createElement("summary");
+    const list = document.createElement("div");
+    list.className = "editor-picker-options";
+    picker.append(trigger, list);
+    select.after(picker);
+    select.hidden = true;
+
+    const label = select.labels[0];
+    label.addEventListener("click", (event) => {
+        event.preventDefault();
+        trigger.focus();
+        picker.open = !picker.open;
+    });
+
+    const options = Array.from(select.options, (option) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.disabled = option.disabled;
+        button.textContent = option.label;
+        button.addEventListener("click", () => {
+            select.value = option.value;
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            picker.open = false;
+            trigger.focus();
+        });
+        list.append(button);
+        return button;
+    });
+
+    function syncSelection() {
+        trigger.textContent = select.selectedOptions[0]?.label || "";
+        trigger.setAttribute("aria-label", [label.textContent.trim(), trigger.textContent].filter(Boolean).join(". "));
+        options.forEach((option, index) => {
+            option.setAttribute("aria-pressed", String(index === select.selectedIndex));
+        });
+    }
+
+    form.addEventListener("change", syncSelection);
+    syncSelection();
+
+    picker.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && picker.open) {
+            picker.open = false;
+            trigger.focus();
+        }
+    });
+    document.addEventListener("click", (event) => {
+        if (!picker.contains(event.target) && !label.contains(event.target)) picker.open = false;
+    });
+}
