@@ -225,7 +225,8 @@ body:has(.map-main) { min-height: 100dvh; height: 100dvh; }
 }
 .map-hint { color: var(--muted); font-size: .9rem; }
 .map-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: .875rem; color: var(--muted); }
-.map-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.map-legend label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.map-legend input { margin: 0; accent-color: var(--focus); }
 .map-legend i, .map-marker { border-radius: 50%; background: #22558a; }
 .map-legend i { width: 12px; height: 12px; }
 .map-legend .map-legend-project, .map-marker.map-marker-project { background: #6e3692; }
